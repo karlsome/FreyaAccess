@@ -69,6 +69,7 @@ function renderSidebarNavigation() {
 
 function loadPage(page) {
   const mainContent = document.getElementById("mainContent");
+  handleNavClick(); // Close sidebar on mobile nav click
 
   switch (page) {
     case "dashboard":
@@ -89,6 +90,10 @@ function loadPage(page) {
         `;
         loadCustomerUsers();
         break;
+
+    case "submittedDB":
+      loadSubmittedDbPage(); 
+      break;
 
     case "masterDB":
       mainContent.innerHTML = `
