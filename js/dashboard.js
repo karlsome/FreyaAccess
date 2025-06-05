@@ -5,66 +5,70 @@
 // =================================================================
 const HIGH_ERROR_THRESHOLD = 2.0;
 const WARNING_ERROR_THRESHOLD = 1.8;
-let userDashboardPreferences = {}; // To store loaded preferences
+let userDashboardPreferences = {
+    selectedWidgets: [], // Stores { widgetId, title, sourceField, summaryType, additionalFilters (optional) }
+    contextFields: {
+        deviceIdField: '', // e.g., 'ユニークID'
+        dateField: '',     // e.g., '日付'
+        // timeField: '' // Optional, if needed for more granular default sort in field discovery
+    }
+};
 // =================================================================
 
-/**
- * Generates a unique localStorage key for the user's dashboard preferences.
- */
 function getPreferencesKey() {
     if (!currentUser || !currentUser.dbName || !currentUser.username) {
-        console.error("User data not available for preference key.");
-        return 'dashboardConfig_default'; // Fallback key
+        return 'dashboardConfig_default_v2'; // Use a new version for new structure
     }
-    return `dashboardConfig_${currentUser.dbName}_${currentUser.username}`;
+    return `dashboardConfig_v2_${currentUser.dbName}_${currentUser.username}`;
 }
 
-/**
- * Loads dashboard preferences from localStorage.
- */
 function loadDashboardPreferences() {
     const key = getPreferencesKey();
     const savedPrefs = localStorage.getItem(key);
     if (savedPrefs) {
         try {
-            userDashboardPreferences = JSON.parse(savedPrefs);
-            if (!userDashboardPreferences.selectedWidgets) {
-                userDashboardPreferences.selectedWidgets = [];
-            }
+            const parsedPrefs = JSON.parse(savedPrefs);
+            // Ensure structure is as expected
+            userDashboardPreferences.selectedWidgets = Array.isArray(parsedPrefs.selectedWidgets) ? parsedPrefs.selectedWidgets : [];
+            userDashboardPreferences.contextFields = parsedPrefs.contextFields || { deviceIdField: '', dateField: ''};
         } catch (e) {
             console.error("Error parsing saved dashboard preferences:", e);
-            userDashboardPreferences = { selectedWidgets: [] };
+            userDashboardPreferences = { selectedWidgets: [], contextFields: { deviceIdField: '', dateField: ''} };
         }
-    } else {
-        userDashboardPreferences = { selectedWidgets: [] }; // Default to empty if nothing saved
+    } else { // Default if nothing saved
+        userDashboardPreferences = { selectedWidgets: [], contextFields: { deviceIdField: '', dateField: ''} };
     }
 }
 
-/**
- * Saves dashboard preferences to localStorage.
- */
 function saveDashboardPreferences() {
     const key = getPreferencesKey();
     try {
         localStorage.setItem(key, JSON.stringify(userDashboardPreferences));
-    } catch (e) {
-        console.error("Error saving dashboard preferences:", e);
-    }
+    } catch (e) { console.error("Error saving dashboard preferences:", e); }
 }
 
 /**
- * Fetches a sample of records to discover field names and infer types.
- * @returns {Promise<Array>} Array of objects like { name: 'fieldName', type: 'string'/'number', isCategorical: boolean }
+ * Fetches a sample of records to discover field names.
  */
-async function fetchSubmittedDbFieldInfo() {
-    // Fetch a sample (e.g., latest 100 records) to infer fields and types
+async function fetchSubmittedDbFieldInfoForCustomization() {
+    // For field discovery, use a generic sort or sort by _id if date/time fields aren't configured yet
+    let sortOption = { _id: -1 }; // Default sort for discovery
+    if (userDashboardPreferences.contextFields.dateField) {
+        sortOption = { [userDashboardPreferences.contextFields.dateField]: -1 };
+        // if (userDashboardPreferences.contextFields.timeField) {
+        //     sortOption[userDashboardPreferences.contextFields.timeField] = -1;
+        // }
+    }
+
     const payload = {
         dbName: currentUser.dbName,
         collectionName: 'submittedDB',
-        options: { sort: { date: -1, time: -1 }, limit: 100 } // Get latest 100
+        query: {}, // Explicitly add an empty query object
+        options: { sort: sortOption, limit: 1 } 
     };
+    
     try {
-        const response = await fetch(`${BASE_URL}queries`, { // Using generic /queries for this
+        const response = await fetch(`${BASE_URL}queries`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -73,42 +77,9 @@ async function fetchSubmittedDbFieldInfo() {
         const sampleData = await response.json();
 
         if (!sampleData || sampleData.length === 0) return [];
-
-        const fieldInfo = {};
-        sampleData.forEach(record => {
-            Object.keys(record).forEach(key => {
-                if (key === '_id') return; // Skip MongoDB ID
-                if (!fieldInfo[key]) {
-                    fieldInfo[key] = {
-                        name: key,
-                        typeCounts: { string: 0, number: 0, boolean: 0, other: 0 },
-                        values: new Set()
-                    };
-                }
-                const value = record[key];
-                if (typeof value === 'string') fieldInfo[key].typeCounts.string++;
-                else if (typeof value === 'number') fieldInfo[key].typeCounts.number++;
-                else if (typeof value === 'boolean') fieldInfo[key].typeCounts.boolean++;
-                else fieldInfo[key].typeCounts.other++;
-                
-                if (typeof value === 'string' || typeof value === 'number') {
-                     fieldInfo[key].values.add(value);
-                }
-            });
-        });
         
-        return Object.values(fieldInfo).map(info => {
-            let inferredType = 'string'; // Default
-            if (info.typeCounts.number > info.typeCounts.string && info.typeCounts.number > info.typeCounts.boolean) {
-                inferredType = 'number';
-            } else if (info.typeCounts.boolean > info.typeCounts.string && info.typeCounts.boolean > info.typeCounts.number) {
-                inferredType = 'boolean';
-            }
-            // Simple categorical check: if it's a string and has few unique values relative to string counts
-            const isCategorical = inferredType === 'string' && info.values.size <= 10 && info.typeCounts.string > 0; 
-            return { name: info.name, type: inferredType, isCategorical: isCategorical };
-        }).sort((a, b) => a.name.localeCompare(b.name));
-
+        // Get all keys from the first sample record, excluding _id
+        return Object.keys(sampleData[0]).filter(key => key !== '_id').sort();
     } catch (error) {
         console.error("Error discovering fields:", error);
         return [];
@@ -119,100 +90,179 @@ async function fetchSubmittedDbFieldInfo() {
  * Renders the content of the customization modal.
  */
 async function renderCustomizeModalContent() {
-    const container = document.getElementById('dashboardFieldsContainer');
-    container.innerHTML = 'Loading fields...';
-    const fields = await fetchSubmittedDbFieldInfo();
+    const fieldsContainer = document.getElementById('dashboardFieldsContainer');
+    const contextFieldsContainer = document.getElementById('dashboardContextFieldsContainer');
+    fieldsContainer.innerHTML = 'Loading available fields...';
+    contextFieldsContainer.innerHTML = 'Loading available fields...';
 
-    if (fields.length === 0) {
-        container.innerHTML = 'Could not load fields from SubmittedDB.';
+    const availableFields = await fetchSubmittedDbFieldInfoForCustomization();
+
+    if (availableFields.length === 0) {
+        fieldsContainer.innerHTML = 'Could not load fields from SubmittedDB. Ensure data exists.';
+        contextFieldsContainer.innerHTML = 'Could not load fields for context mapping.';
         return;
     }
 
-    let html = '';
-    fields.forEach(field => {
-        const currentWidgetConfig = userDashboardPreferences.selectedWidgets.find(w => w.fieldName === field.name);
-        const isChecked = !!currentWidgetConfig;
-        
-        html += `<div class="p-2 border-b">
-                    <label class="flex items-center cursor-pointer">
-                        <input type="checkbox" class="mr-2 dashboard-field-checkbox" data-field-name="${field.name}" ${isChecked ? 'checked' : ''}>
-                        <span class="font-medium">${field.name}</span>
-                    </label>`;
-        
-        if (field.type === 'number') {
-            const currentSummaryType = currentWidgetConfig ? currentWidgetConfig.summaryType : 'sum';
-            html += `<select class="ml-4 mt-1 p-1 border rounded text-sm bg-white dashboard-summary-type" data-field-name="${field.name}" ${!isChecked ? 'disabled' : ''}>
-                        <option value="sum" ${currentSummaryType === 'sum' ? 'selected' : ''}>Total Sum</option>
-                        <option value="average" ${currentSummaryType === 'average' ? 'selected' : ''}>Average</option>
-                        <option value="count" ${currentSummaryType === 'count' ? 'selected' : ''}>Count Records</option>
-                        <option value="min" ${currentSummaryType === 'min' ? 'selected' : ''}>Minimum</option>
-                        <option value="max" ${currentSummaryType === 'max' ? 'selected' : ''}>Maximum</option>
-                     </select>`;
-        }
-        // For categorical, default is breakdown. Can add options later if needed.
-        html += `</div>`;
-    });
-    container.innerHTML = html;
+    // --- Render Context Field Mappings ---
+    let contextHtml = `<p class="text-sm text-gray-600 mb-2">Map your data fields for dashboard context:</p>`;
+    const contextFieldConfigs = [
+        { prefKey: 'deviceIdField', label: 'Device Identifier Field (e.g., ユニークID)'},
+        { prefKey: 'dateField', label: 'Primary Date Field (for daily summary, e.g., 日付)'}
+        // { prefKey: 'timeField', label: 'Primary Time Field (optional, for sorting)'}
+    ];
 
-    // Add event listeners to enable/disable summary type dropdowns
-    container.querySelectorAll('.dashboard-field-checkbox').forEach(checkbox => {
-        checkbox.addEventListener('change', (event) => {
-            const fieldName = event.target.getAttribute('data-field-name');
-            const summarySelect = container.querySelector(`.dashboard-summary-type[data-field-name="${fieldName}"]`);
-            if (summarySelect) {
-                summarySelect.disabled = !event.target.checked;
-            }
-        });
+    contextFieldConfigs.forEach(cfg => {
+        contextHtml += `<div class="mb-3">
+            <label class="block text-sm font-medium text-gray-700">${cfg.label}</label>
+            <select id="context_${cfg.prefKey}" class="mt-1 p-2 border rounded w-full bg-white">
+                <option value="">-- Select Field --</option>
+                ${availableFields.map(f => `<option value="${f}" ${userDashboardPreferences.contextFields[cfg.prefKey] === f ? 'selected' : ''}>${f}</option>`).join('')}
+            </select>
+        </div>`;
     });
+    contextFieldsContainer.innerHTML = contextHtml;
+
+    // --- Render Widget Configuration Area ---
+    fieldsContainer.innerHTML = ''; // Clear for actual widgets
+    // For simplicity, we'll allow adding multiple widgets of the same field with different configs
+    // This section will be for adding *new* widgets or listing existing ones.
+    // For this iteration, let's focus on *defining* the widgets.
+    // We'll display current widgets and allow adding new ones.
+
+    // Display currently selected widgets
+    let currentWidgetsHtml = '<h4 class="text-md font-semibold mb-2">Current Widgets:</h4>';
+    if (userDashboardPreferences.selectedWidgets.length === 0) {
+        currentWidgetsHtml += '<p class="text-sm text-gray-500">No widgets configured yet. Add one below.</p>';
+    }
+    userDashboardPreferences.selectedWidgets.forEach((widget, index) => {
+        currentWidgetsHtml += `<div class="p-2 border rounded mb-2 bg-gray-50">
+            <p class="font-medium">${widget.title || widget.sourceField} <span class="text-xs text-gray-500">(${widget.summaryType})</span></p>
+            <p class="text-xs">Source Field: ${widget.sourceField}</p> 
+            <button onclick="removeDashboardWidget(${index})" class="text-xs text-red-500 hover:underline">Remove</button>
+        </div>`;
+    });
+    fieldsContainer.innerHTML += currentWidgetsHtml;
+
+    // Area to add a new widget g
+    fieldsContainer.innerHTML += `<div class="mt-4 pt-4 border-t">
+        <h4 class="text-md font-semibold mb-2">Add New Widget:</h4>
+        <div class="mb-2">
+            <label class="block text-sm">Widget Title (optional):</label>
+            <input type="text" id="newWidgetTitle" class="p-1 border rounded w-full">
+        </div>
+        <div class="mb-2">
+            <label class="block text-sm">Data Field to Summarize:</label>
+            <select id="newWidgetSourceField" class="p-1 border rounded w-full bg-white">
+                <option value="">-- Select Field --</option>
+                ${availableFields.map(f => `<option value="${f}">${f}</option>`).join('')}
+            </select>
+        </div>
+        <div class="mb-2">
+            <label class="block text-sm">Summary Type:</label>
+            <select id="newWidgetSummaryType" class="p-1 border rounded w-full bg-white">
+                <option value="percentageBreakdown">Percentage Breakdown (for text/categories)</option>
+                <option value="sum">Total Sum (for numbers)</option>
+                <option value="average">Average (for numbers)</option>
+                <option value="countRecords">Count Records with Data</option>
+                <option value="countUnique">Count Unique Values</option>
+                <option value="min">Minimum (for numbers)</option>
+                <option value="max">Maximum (for numbers)</option>
+            </select>
+        </div>
+        <button onclick="addNewDashboardWidget()" class="bg-green-500 text-white px-3 py-1 rounded text-sm hover:bg-green-600">Add Widget</button>
+    </div>`;
 }
 
-/**
- * Opens the dashboard customization modal.
- */
+function addNewDashboardWidget() {
+    const title = document.getElementById('newWidgetTitle').value.trim();
+    const sourceField = document.getElementById('newWidgetSourceField').value;
+    const summaryType = document.getElementById('newWidgetSummaryType').value;
+
+    if (!sourceField || !summaryType) {
+        alert("Please select a Data Field and a Summary Type.");
+        return;
+    }
+    userDashboardPreferences.selectedWidgets.push({
+        widgetId: `widget_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`, // pseudo-unique ID
+        title: title || sourceField, // Default title to fieldName if not provided
+        sourceField: sourceField,
+        summaryType: summaryType
+    });
+    renderCustomizeModalContent(); // Re-render modal to show new widget and clear inputs
+    document.getElementById('newWidgetTitle').value = ''; // Clear input
+}
+
+function removeDashboardWidget(index) {
+    userDashboardPreferences.selectedWidgets.splice(index, 1);
+    renderCustomizeModalContent(); // Re-render modal
+}
+
+
 function openCustomizeModal() {
-    renderCustomizeModalContent(); // Populate with fields
+    renderCustomizeModalContent();
     document.getElementById('customizeDashboardModal').classList.remove('hidden');
 }
 
-/**
- * Closes the dashboard customization modal.
- */
 function closeCustomizeModal() {
     document.getElementById('customizeDashboardModal').classList.add('hidden');
 }
 
-/**
- * Applies the selections from the modal and saves preferences.
- */
+
 function applyDashboardCustomization() {
-    const newSelectedWidgets = [];
-    document.querySelectorAll('.dashboard-field-checkbox:checked').forEach(checkbox => {
-        const fieldName = checkbox.getAttribute('data-field-name');
-        const fieldsInfo = document.getElementById('dashboardFieldsContainer'); // To get type info indirectly
-        const fieldTypeElement = fieldsInfo.querySelector(`.dashboard-summary-type[data-field-name="${fieldName}"]`);
-        
-        let summaryType = 'breakdown'; // Default for categorical/string
-        if (fieldTypeElement) { // It's a numeric field with a summary type selector
-            summaryType = fieldTypeElement.value;
-        }
-        newSelectedWidgets.push({ fieldName: fieldName, summaryType: summaryType });
-    });
-    userDashboardPreferences.selectedWidgets = newSelectedWidgets;
+    // 1. Read and save the context fields from the modal's dropdowns
+    const deviceIdFieldValue = document.getElementById('context_deviceIdField').value;
+    const dateFieldValue = document.getElementById('context_dateField').value;
+
+    // Optional: Add validation to ensure these critical fields are selected
+    if (!deviceIdFieldValue || !dateFieldValue) {
+        alert("重要: ダッシュボードのコンテキストフィールド（デバイスIDフィールドと主要日付フィールド）を「表示設定の変更」で選択してください。");
+        // Consider not closing the modal or not saving if these are truly mandatory before any widget can work.
+        // For now, we'll proceed to save what's selected, and loadDeviceOverview will show its own warning if they are missing.
+    }
+
+    userDashboardPreferences.contextFields.deviceIdField = deviceIdFieldValue;
+    userDashboardPreferences.contextFields.dateField = dateFieldValue;
+    // If you had a timeField:
+    // userDashboardPreferences.contextFields.timeField = document.getElementById('context_timeField')?.value || '';
+
+    // 2. The userDashboardPreferences.selectedWidgets array is ALREADY up-to-date
+    //    due to calls to addNewDashboardWidget() and removeDashboardWidget() made
+    //    during this modal session, which directly modify userDashboardPreferences.selectedWidgets.
+
+    // 3. Save the entire, updated preferences object to localStorage.
     saveDashboardPreferences();
+
+    // 4. Close the modal.
     closeCustomizeModal();
-    loadDeviceOverview(); // Reload dashboard with new preferences
+
+    // 5. Reload the dashboard to reflect all changes (new context fields and new/removed widgets).
+    loadDeviceOverview();
 }
 
+document.querySelectorAll('.dashboard-field-checkbox:checked').forEach(checkbox => {
+        const selectedFieldName = checkbox.getAttribute('data-field-name'); // Use a different local var name
+        const fieldsInfo = document.getElementById('dashboardFieldsContainer');
+        const fieldTypeElement = fieldsInfo.querySelector(`.dashboard-summary-type[data-field-name="${selectedFieldName}"]`);
+        
+        let summaryType = 'breakdown';
+        if (fieldTypeElement) {
+            summaryType = fieldTypeElement.value;
+        }
+        // Use sourceField, and also add a default title if one isn't explicitly set for these types of widgets
+        newSelectedWidgets.push({ 
+            widgetId: `widget_${Date.now()}_${selectedFieldName}`, // Give it a basic ID
+            title: selectedFieldName, // Default title to the field name
+            sourceField: selectedFieldName, // <--- CHANGED to sourceField
+            summaryType: summaryType 
+        });
+    });
 
-// --- Main Dashboard Rendering Logic ---
-
-async function fetchDeviceList() { /* ... (same as before) ... */ 
+async function fetchDeviceList() {
     const response = await fetch(`${BASE_URL}queries`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-            dbName: 'Sasaki_Coating_MasterDB',
-            collectionName: 'masterUsers',
+            dbName: 'Sasaki_Coating_MasterDB', collectionName: 'masterUsers',
             query: { dbName: currentUser.dbName }
         }),
     });
@@ -221,221 +271,226 @@ async function fetchDeviceList() { /* ... (same as before) ... */
     return users.length > 0 ? users[0].devices || [] : [];
 }
 
-async function fetchTodaysLogs() { /* ... (same as before) ... */ 
+// This function is NO LONGER used to fetch all logs for the dashboard.
+// Each widget will fetch its own data.
+// async function fetchTodaysLogs() { ... } // REMOVED
+
+function calculatePercentageBreakdown(data, fieldName) { // data is now the direct result from aggregation
+    if (!Array.isArray(data) || data.length === 0) return { listHtml: `<p class="text-xs text-gray-400">No data for ${fieldName} breakdown.</p>`, errorBadgeHtml: '' };
+    
+    const totalCount = data.reduce((sum, item) => sum + (item.count || 0), 0);
+    if (totalCount === 0) return { listHtml: `<p class="text-xs text-gray-400">No countable entries for ${fieldName}.</p>`, errorBadgeHtml: '' };
+
+    let listHtml = `<ul class="space-y-1 text-xs mt-1">`;
+    let errorBadgeHtml = '';
+
+    data.forEach(item => { // item is like { _id: "ValueA", count: X }
+        const value = item._id;
+        const count = item.count;
+        const percentage = (count / totalCount) * 100;
+        let styleClass = 'text-gray-600';
+        let valueStyle = 'font-medium text-gray-800';
+
+        // Apply special styling if this widget is for the "Action" field (or its Japanese equivalent)
+        // This requires knowing which field is the "Action" field.
+        // For now, let's assume if fieldName is "アクション" (or configured "action" field)
+        const isActionField = fieldName === (userDashboardPreferences.contextFields.actionFieldForStyling || 'アクション'); // Needs configuration
+        if (isActionField && value === (userDashboardPreferences.contextFields.scanErrorValue || 'スキャンエラー')) {
+            if (percentage > HIGH_ERROR_THRESHOLD) {
+                styleClass = 'text-red-500 font-semibold'; valueStyle = 'font-semibold text-red-500';
+                errorBadgeHtml = `<div class="mt-2"><span class="bg-red-100 text-red-700 text-xs font-medium px-2 py-0.5 rounded-full">High Error Rate</span></div>`;
+            } else if (percentage >= WARNING_ERROR_THRESHOLD) {
+                styleClass = 'text-amber-500 font-semibold'; valueStyle = 'font-semibold text-amber-500';
+                errorBadgeHtml = `<div class="mt-2"><span class="bg-amber-100 text-amber-700 text-xs font-medium px-2 py-0.5 rounded-full">Warning</span></div>`;
+            }
+        }
+        listHtml += `<li class="flex justify-between items-center ${styleClass}">
+                        <span class="truncate" title="${value}">${value}</span>
+                        <span class="${valueStyle}">${percentage.toFixed(1)}% (${count}/${totalCount})</span>
+                     </li>`;
+    });
+    listHtml += `</ul>`;
+    return { listHtml, errorBadgeHtml };
+}
+
+function formatNumericSummary(data, summaryType) { // data is direct aggregation result
+    if (!Array.isArray(data) || data.length === 0 || data[0].value === undefined || data[0].value === null) {
+        return `<p class="text-xs text-gray-400">No data.</p>`;
+    }
+    const result = data[0].value;
+    return `<p class="text-2xl font-semibold text-gray-900">${typeof result === 'number' ? result.toFixed(summaryType === 'average' ? 2 : 0) : result}</p>`;
+}
+
+/**
+ * Renders individual device card by fetching data for each configured widget.
+ */
+async function renderDeviceCard(device, preferences) {
+    console.log("Rendering card for device:", device.uniqueId, "Prefs:", JSON.parse(JSON.stringify(preferences))); // Deep copy for logging
+    console.log(userDashboardPreferences)
+    const deviceTitle = device.pcName || device.name;
+    const card = document.createElement('div');
+    card.className = 'bg-white p-4 md:p-6 rounded-lg shadow-md border border-gray-200';
+    card.innerHTML = `<h3 class="text-xl font-bold text-gray-800 mb-3">${deviceTitle}</h3>`;
+
+    const cardContentContainer = document.createElement('div');
+    card.appendChild(cardContentContainer);
+    
+    card.onclick = function() {
+        if (typeof loadPage === 'function') loadPage('submittedDB');
+        else window.location.hash = '#submittedDB';
+    };
+
+    if (!preferences.contextFields.deviceIdField || !preferences.contextFields.dateField) {
+        cardContentContainer.innerHTML = `<p class="text-sm text-gray-500">Dashboard context fields (Device ID, Date) are not configured. Please set them in "Customize View".</p>`;
+        return card;
+    }
+    if (!preferences.selectedWidgets || preferences.selectedWidgets.length === 0) {
+        cardContentContainer.innerHTML = `<p class="text-sm text-gray-500">Click 'Customize View' to add widgets and select metrics to display.</p>`;
+        return card;
+    }
+
+    // Get today's date string for filtering
     const today = new Date();
     const jstOffset = 9 * 60; 
     const localOffset = today.getTimezoneOffset();
     today.setMinutes(today.getMinutes() + jstOffset + localOffset);
     const dateString = today.toISOString().split('T')[0];
 
-    const response = await fetch(`${BASE_URL}queries`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+    preferences.selectedWidgets.forEach(async (widgetConfig) => {
+        const widgetDiv = document.createElement('div');
+        widgetDiv.className = 'mt-3 pt-3 border-t border-gray-200 first:border-t-0 first:pt-0';
+        widgetDiv.innerHTML = `<h4 class="text-sm font-semibold text-blue-600 mb-1">${widgetConfig.title}</h4>
+                               <div class="widget-data-container text-xs text-gray-500">Loading widget data...</div>`;
+        cardContentContainer.appendChild(widgetDiv);
+        const widgetDataContainer = widgetDiv.querySelector('.widget-data-container');
+
+        const payload = {
             dbName: currentUser.dbName,
             collectionName: 'submittedDB',
-            query: { date: dateString } 
-        }),
-    });
-    if (!response.ok) throw new Error('Failed to fetch today\'s logs');
-    return response.json();
-}
-
-function calculatePercentageBreakdown(logs, fieldName) {
-    if (logs.length === 0) return { listHtml: '', errorBadgeHtml: '' };
-    
-    const counts = {};
-    let validEntriesForField = 0;
-    logs.forEach(log => {
-        if (log[fieldName] !== undefined && log[fieldName] !== null && String(log[fieldName]).trim() !== "") {
-            counts[log[fieldName]] = (counts[log[fieldName]] || 0) + 1;
-            validEntriesForField++;
-        }
-    });
-
-    if (validEntriesForField === 0) return { listHtml: `<p class="text-xs text-gray-400">No data for ${fieldName}</p>`, errorBadgeHtml: '' };
-
-    let listHtml = `<ul class="space-y-1 text-xs mt-1">`;
-    let errorBadgeHtml = '';
-    const sortedValues = Object.keys(counts).sort();
-
-    for (const value of sortedValues) {
-        const count = counts[value];
-        const percentage = (count / validEntriesForField) * 100;
-        let styleClass = 'text-gray-600';
-        let valueStyle = 'font-medium text-gray-800';
-
-        if (fieldName === 'Action' && value === 'Scan Error') { // Apply special styling for Scan Error
-            if (percentage > HIGH_ERROR_THRESHOLD) {
-                styleClass = 'text-red-500 font-semibold';
-                valueStyle = 'font-semibold text-red-500';
-                errorBadgeHtml = `<div class="mt-2"><span class="bg-red-100 text-red-700 text-xs font-medium px-2 py-0.5 rounded-full">High Error Rate</span></div>`;
-            } else if (percentage >= WARNING_ERROR_THRESHOLD) {
-                styleClass = 'text-amber-500 font-semibold';
-                valueStyle = 'font-semibold text-amber-500';
-                errorBadgeHtml = `<div class="mt-2"><span class="bg-amber-100 text-amber-700 text-xs font-medium px-2 py-0.5 rounded-full">Warning</span></div>`;
+            queryConfig: {
+                deviceIdField: preferences.contextFields.deviceIdField,
+                deviceIdValue: device.uniqueId,
+                dateField: preferences.contextFields.dateField,
+                dateValue: dateString,
+                sourceField: widgetConfig.sourceField,
+                summaryType: widgetConfig.summaryType,
+                additionalFilters: widgetConfig.additionalFilters || {}
             }
-        }
-        listHtml += `<li class="flex justify-between items-center ${styleClass}">
-                        <span>${value}</span>
-                        <span class="${valueStyle}">${percentage.toFixed(2)}% (${count}/${validEntriesForField})</span>
-                     </li>`;
-    }
-    listHtml += `</ul>`;
-    return { listHtml, errorBadgeHtml };
-}
+        };
 
-function calculateNumericSummary(logs, fieldName, summaryType) {
-    const numbers = logs.map(log => parseFloat(log[fieldName])).filter(n => !isNaN(n));
-    if (numbers.length === 0) return `<p class="text-xs text-gray-400">No numeric data for ${fieldName}</p>`;
+        try {
+            const response = await fetch(`${BASE_URL}aggregateCustomerDashboardWidgetData`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            if (!response.ok) throw new Error(`Widget data fetch error: ${response.statusText}`);
+            const widgetData = await response.json();
 
-    let result;
-    let label = '';
-    switch (summaryType) {
-        case 'sum':
-            result = numbers.reduce((acc, val) => acc + val, 0);
-            label = 'Total Sum';
-            break;
-        case 'average':
-            result = numbers.reduce((acc, val) => acc + val, 0) / numbers.length;
-            label = 'Average';
-            break;
-        case 'min':
-            result = Math.min(...numbers);
-            label = 'Minimum';
-            break;
-        case 'max':
-            result = Math.max(...numbers);
-            label = 'Maximum';
-            break;
-        case 'count':
-            result = numbers.length;
-            label = 'Record Count';
-            break;
-        default:
-            return `<p class="text-xs text-red-400">Unknown summary: ${summaryType}</p>`;
-    }
-    return `<p class="text-base font-semibold text-gray-900">${typeof result === 'number' ? result.toFixed(2) : result}</p>`;
-}
-
-/**
- * Renders individual device card with customized widgets.
- */
-function renderDeviceCard(device, allTodayLogs, preferences) {
-    const deviceTitle = device.pcName || device.name;
-    const deviceLogs = allTodayLogs.filter(log => log.uniqueID === device.uniqueId);
-
-    let cardContentHtml = `<h3 class="text-xl font-bold text-gray-800 mb-3">${deviceTitle}</h3>`;
-
-    if (!preferences || !preferences.selectedWidgets || preferences.selectedWidgets.length === 0) {
-        cardContentHtml += `<p class="text-sm text-gray-500">Click 'Customize View' to select metrics to display.</p>`;
-    } else {
-        preferences.selectedWidgets.forEach(widgetConfig => {
-            cardContentHtml += `<div class="mt-3 pt-3 border-t border-gray-200 first:border-t-0 first:pt-0">`;
-            cardContentHtml += `<h4 class="text-sm font-semibold text-blue-600 mb-1">${widgetConfig.fieldName} (${widgetConfig.summaryType})</h4>`;
-            
-            // Determine if field is likely categorical by checking its summary type preference
-            // This assumes `fetchSubmittedDbFieldInfo` would inform this choice, but for simplicity now:
-            // We rely on the summaryType chosen by the user.
-            if (widgetConfig.summaryType === 'breakdown') {
-                const breakdown = calculatePercentageBreakdown(deviceLogs, widgetConfig.fieldName);
-                cardContentHtml += breakdown.listHtml;
-                if (widgetConfig.fieldName === 'Action') { // Only show error badge for Action field
-                    cardContentHtml += breakdown.errorBadgeHtml;
+            if (widgetConfig.summaryType === 'percentageBreakdown') {
+                const breakdown = calculatePercentageBreakdown(widgetData, widgetConfig.sourceField);
+                widgetDataContainer.innerHTML = breakdown.listHtml;
+                 // For special styling, need to know actionField & scanErrorValue from contextFields
+                const actionFieldForStyling = preferences.contextFields.actionFieldForStyling || 'アクション';
+                const scanErrorValueForStyling = preferences.contextFields.scanErrorValue || 'スキャンエラー';
+                if (widgetConfig.sourceField === actionFieldForStyling) { // Check if this widget is for the "Action" field
+                    widgetDataContainer.innerHTML += breakdown.errorBadgeHtml; // errorBadgeHtml logic needs to be in calculatePercentageBreakdown
                 }
-            } else { // Assumed numeric summary type (sum, average, etc.)
-                cardContentHtml += calculateNumericSummary(deviceLogs, widgetConfig.fieldName, widgetConfig.summaryType);
+            } else {
+                widgetDataContainer.innerHTML = formatNumericSummary(widgetData, widgetConfig.summaryType);
             }
-            cardContentHtml += `</div>`;
-        });
-    }
-
-    const card = document.createElement('div');
-    card.className = 'bg-white p-4 md:p-6 rounded-lg shadow-md border border-gray-200 hover:shadow-lg hover:border-blue-500 transition-all cursor-pointer';
-    card.onclick = function() {
-        if (typeof loadPage === 'function') loadPage('submittedDB');
-        else window.location.hash = '#submittedDB';
-    };
-    card.innerHTML = cardContentHtml;
+        } catch (error) {
+            console.error(`Error loading data for widget ${widgetConfig.title}:`, error);
+            widgetDataContainer.innerHTML = `<p class="text-xs text-red-500">Error loading widget data.</p>`;
+        }
+    });
     return card;
 }
 
-
-/**
- * Main function to load and display the device overview dashboard.
- */
 async function loadDeviceOverview() {
-    const mainContent = document.getElementById('mainContent'); // Assume this div exists from index.html
-    if (!mainContent) return;
+    const mainContent = document.getElementById('mainContent');
+    if (!mainContent) { console.error("Main content area not found!"); return; }
     
-    // Inject Customize Button if not already there (or ensure it's correctly placed in index.html or app.js)
     let customizeButtonContainer = document.getElementById('dashboardCustomizeButtonContainer');
     if (!customizeButtonContainer) {
         customizeButtonContainer = document.createElement('div');
         customizeButtonContainer.id = 'dashboardCustomizeButtonContainer';
-        customizeButtonContainer.className = 'mb-4 text-right'; // Style as needed
-        customizeButtonContainer.innerHTML = `<button onclick="openCustomizeModal()" class="bg-indigo-600 text-white px-4 py-2 rounded text-sm hover:bg-indigo-700">Customize View</button>`;
-        // Find where to insert this button. Usually above the deviceOverviewContainer
-        const dashboardTitle = mainContent.querySelector('h2'); // Assuming there's an H2 for "Device Overview"
-        if (dashboardTitle) {
+        customizeButtonContainer.className = 'mb-4 text-right';
+        customizeButtonContainer.innerHTML = `<button onclick="openCustomizeModal()" class="bg-indigo-600 text-white px-4 py-2 rounded text-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-50">表示設定の変更</button>`;
+        
+        const dashboardTitle = mainContent.querySelector('h2#dashboardPageTitle'); // Give your dashboard title an ID
+         if (dashboardTitle) {
             dashboardTitle.insertAdjacentElement('afterend', customizeButtonContainer);
         } else {
-            mainContent.insertBefore(customizeButtonContainer, mainContent.firstChild); // Fallback
+             const firstChild = mainContent.firstChild;
+             if(firstChild) mainContent.insertBefore(customizeButtonContainer, firstChild.nextSibling);
+             else mainContent.appendChild(customizeButtonContainer);
         }
     }
     
-    // Inject Modal HTML if not already in index.html
     if (!document.getElementById('customizeDashboardModal')) {
         const modalHtml = `
-            <div id="customizeDashboardModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-[70] flex items-center justify-center p-4">
-                <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-lg">
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="text-xl font-semibold">Customize Dashboard Widgets</h3>
-                        <button onclick="closeCustomizeModal()" class="text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
+            <div id="customizeDashboardModal" class="fixed inset-0 bg-black bg-opacity-60 hidden z-[70] flex items-center justify-center p-4" onclick="event.target === this && closeCustomizeModal()">
+                <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl max-h-[90vh] flex flex-col">
+                    <div class="flex justify-between items-center mb-4 pb-3 border-b">
+                        <h3 class="text-xl font-semibold text-gray-800">ダッシュボード表示設定</h3>
+                        <button onclick="closeCustomizeModal()" class="text-gray-400 hover:text-gray-700 text-2xl leading-none">&times;</button>
                     </div>
-                    <div id="dashboardFieldsContainer" class="space-y-1 max-h-80 overflow-y-auto mb-6 border p-3 rounded bg-gray-50">
-                        Loading fields...
+                    <div class="overflow-y-auto flex-grow pr-2">
+                        <div id="dashboardContextFieldsContainer" class="mb-6 p-3 border rounded bg-gray-50"></div>
+                        <div id="dashboardFieldsContainer" class="space-y-1"></div>
                     </div>
-                    <div class="flex justify-end gap-2">
-                        <button onclick="closeCustomizeModal()" class="bg-gray-200 text-gray-800 px-4 py-2 rounded text-sm hover:bg-gray-300">Cancel</button>
-                        <button onclick="applyDashboardCustomization()" class="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">Apply Changes</button>
+                    <div class="flex justify-end gap-3 pt-4 border-t mt-4">
+                        <button onclick="closeCustomizeModal()" class="bg-gray-200 text-gray-800 px-4 py-2 rounded text-sm hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400">キャンセル</button>
+                        <button onclick="applyDashboardCustomization()" class="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">変更を適用</button>
                     </div>
                 </div>
             </div>`;
         document.body.insertAdjacentHTML('beforeend', modalHtml);
     }
 
-
     const container = document.getElementById('deviceOverviewContainer');
     if (!container) {
         console.error("deviceOverviewContainer not found in mainContent for dashboard.");
         return; 
     }
-    container.innerHTML = `<div class="text-center text-gray-500">Loading device data...</div>`;
+    container.innerHTML = `<div class="col-span-full text-center text-gray-500 py-10">デバイスデータを読み込み中...</div>`;
+    container.className = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6';
 
-    loadDashboardPreferences(); // Load any saved preferences
+
+    loadDashboardPreferences();
+
+    // Check if essential context fields are set, if not, prompt user
+    if (!userDashboardPreferences.contextFields.deviceIdField || !userDashboardPreferences.contextFields.dateField) {
+        container.innerHTML = `<div class="col-span-full text-center text-orange-600 bg-orange-50 p-4 rounded border border-orange-200">
+            ダッシュボードの表示には、まず「表示設定の変更」でデバイスIDフィールドと日付フィールドを指定してください。
+        </div>`;
+        // Optionally open the modal automatically
+        // openCustomizeModal(); 
+        return;
+    }
 
     try {
-        const [devices, logs] = await Promise.all([
-            fetchDeviceList(),
-            fetchTodaysLogs()
-        ]);
+        const devices = await fetchDeviceList();
         
-        container.className = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6';
-        container.innerHTML = ''; // Clear loading message before adding cards
+        container.innerHTML = ''; // Clear loading before adding cards
 
         if (!devices || devices.length === 0) {
-            container.innerHTML = `<div class="col-span-full text-center text-gray-500">No devices are registered for this account.</div>`;
+            container.innerHTML = `<div class="col-span-full text-center text-gray-500">このアカウントにはデバイスが登録されていません。</div>`;
             return;
         }
 
-        devices.forEach(device => {
-            const cardElement = renderDeviceCard(device, logs, userDashboardPreferences);
+        // Render cards. Data fetching for each widget happens inside renderDeviceCard
+        devices.forEach(async (device) => { // Note: forEach with async in it doesn't wait
+            const cardElement = await renderDeviceCard(device, userDashboardPreferences); // Make renderDeviceCard async if it needs to await
             container.appendChild(cardElement);
         });
+        // If renderDeviceCard is not async and fetches internally, the above is fine.
+        // If renderDeviceCard becomes async itself due to internal awaits, consider Promise.all if order doesn't matter
+        // or a sequential loop if order matters or to avoid too many parallel requests at once.
 
     } catch (error) {
         console.error('Dashboard Error:', error);
-        container.innerHTML = `<div class="col-span-full text-center text-red-500">Failed to load dashboard: ${error.message}</div>`;
+        container.innerHTML = `<div class="col-span-full text-center text-red-500">ダッシュボードの読み込みに失敗しました: ${error.message}</div>`;
     }
 }
