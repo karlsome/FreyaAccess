@@ -14,7 +14,7 @@ const customerDB = currentUser.dbName; // Dynamically use customer's DB name
 const roleAccess = {
   masterUser: ["dashboard", "userManagement", "masterDB", "submittedDB"],
   admin: ["dashboard", "userManagement", "masterDB", "submittedDB"],
-  班長: ["dashboard", "masterDB", "submittedDB"],
+  職長: ["dashboard", "masterDB", "submittedDB"],
   member: ["dashboard"]
 };
 

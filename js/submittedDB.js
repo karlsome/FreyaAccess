@@ -12,18 +12,28 @@ let discoveredTableHeaders = [];
 let exportColumnSelection = {}; 
 
 /**
- * Dynamically discovers headers from the first data record and sets a preferred order.
+ * Dynamically discovers headers from all data records and sets a preferred order.
  * Also initializes exportColumnSelection.
  */
-function initializeTableHeaders(firstRecord) {
-    if (!firstRecord || discoveredTableHeaders.length > 0 && Object.keys(firstRecord).length === discoveredTableHeaders.length) return;
+function initializeTableHeaders(records) {
+    if (!records || records.length === 0) return;
 
-    const allKeys = Object.keys(firstRecord).filter(key => key !== '_id'); 
+    // Collect all unique keys from all records
+    const allKeysSet = new Set();
+    records.forEach(record => {
+        Object.keys(record).forEach(key => {
+            if (key !== '_id') {
+                allKeysSet.add(key);
+            }
+        });
+    });
+    
+    const allKeys = Array.from(allKeysSet);
 
     const preferredHeaderOrder = [
         '日付', '時間', 'デバイス名', 'ユニークID', '品番', 
         'QR1ステータス', 'QR2ステータス', 'QR3ステータス', 
-        'データ送信ステータス', 'アクション', 'コメント', '班長'
+        'データ送信ステータス', 'アクション', 'コメント', '職長', '班長'
     ];
 
     discoveredTableHeaders = [];
@@ -86,8 +96,8 @@ async function fetchAndRenderData(resetPage = false) {
         const records = result.data || [];
         totalRecords = result.totalCount || 0;
 
-        if (records.length > 0 && discoveredTableHeaders.length === 0) {
-            initializeTableHeaders(records[0]);
+        if (records.length > 0) {
+            initializeTableHeaders(records);
         }
 
         renderTable(records);
@@ -256,7 +266,7 @@ function showDetailsPanel(record) {
     const panelOverlay = document.getElementById('detailsPanelOverlay');
     document.getElementById('detailsPanelTitle').textContent = record['品番'] || '詳細'; 
     let contentHtml = '';
-    const preferredOrder = ['品番', '日付', '時間', 'アクション', 'デバイス名', 'ユニークID', 'コメント', '班長', 'QR1ステータス', 'QR2ステータス', 'QR3ステータス', 'データ送信ステータス'];
+    const preferredOrder = ['品番', '日付', '時間', 'アクション', 'デバイス名', 'ユニークID', 'コメント', '職長', '班長', 'QR1ステータス', 'QR2ステータス', 'QR3ステータス', 'データ送信ステータス'];
     const displayedKeys = new Set();
 
     const createRowHTML = (key, value) => `<div class="py-2 px-4 border-b"><p class="text-xs text-gray-500 break-all">${key}</p><p class="text-base text-gray-900 break-words">${value === undefined || value === null ? '-' : value}</p></div>`;

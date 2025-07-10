@@ -39,7 +39,7 @@ function showCreateUserForm() {
         <select id="newRole" class="border p-2 rounded w-full">
           <option value="">Select Role</option>
           <option value="admin">admin</option>
-          <option value="班長">班長</option>
+          <option value="職長">職長</option>
           <option value="member">member</option>
         </select>
       </div>
@@ -74,8 +74,12 @@ async function saveUser(userId) {
 
   const updated = {};
   document.querySelectorAll(`[user-id='${userId}']`).forEach(el => {
-    if (el.dataset.field) updated[el.dataset.field] = el.value;
-    if (el.dataset.role) updated.role = el.value;
+    if (el.dataset.field) {
+      updated[el.dataset.field] = el.value;
+    }
+    if (el.hasAttribute('data-role')) {
+      updated.role = el.value;
+    }
   });
 
   try {
@@ -158,7 +162,7 @@ function renderUserTable(users) {
                 ${
                   h === "role"
                     ? `<select class="border p-1 rounded" disabled data-role user-id="${u._id}">
-                        ${["admin", "masterUser", "班長", "member"].map(r => `
+                        ${["admin", "masterUser", "職長", "member"].map(r => `
                           <option value="${r}" ${u.role === r ? "selected" : ""}>${r}</option>
                         `).join("")}
                       </select>`
@@ -166,8 +170,9 @@ function renderUserTable(users) {
                 }
               </td>
             `).join("")}
-            <td class="px-4 py-2">
+            <td class="px-4 py-2" id="actions-${u._id}">
               <button class="text-blue-600 hover:underline text-sm" onclick="startEditingUser('${u._id}')">Edit</button>
+              <button class="ml-2 text-green-600 hover:underline text-sm" onclick="resetUserPassword('${u._id}')">Reset Password</button>
               <button class="ml-2 text-red-600 hover:underline text-sm" onclick="deleteUser('${u._id}')">Delete</button>
             </td>
           </tr>
@@ -206,12 +211,71 @@ async function submitNewUser() {
     });
 
     const result = await res.json();
-    if (!res.ok) throw new Error(result.error || "作成に失敗しました");
+    if (!res.ok) {
+      // Translate common error messages to Japanese
+      let errorMessage = result.error || "作成に失敗しました";
+      
+      if (errorMessage.includes("Username already exists in this customer database")) {
+        errorMessage = "このユーザー名は既にこの会社のデータベースに存在します";
+      } else if (errorMessage.includes("Username already exists in a master account")) {
+        errorMessage = "このユーザー名は既にマスターアカウントに存在します";
+      } else if (errorMessage.includes("Username already exists in another customer company")) {
+        errorMessage = "このユーザー名は既に他の会社で使用されています";
+      } else if (errorMessage.includes("Missing required fields")) {
+        errorMessage = "必須フィールドが入力されていません";
+      } else if (errorMessage.includes("Access denied")) {
+        errorMessage = "アクセスが拒否されました";
+      }
+      
+      throw new Error(errorMessage);
+    }
 
     alert("ユーザー作成成功");
     loadCustomerUsers();
   } catch (err) {
     console.error("Create error:", err);
-    alert("作成エラー");
+    alert("作成エラー: " + err.message);
+  }
+}
+
+async function resetUserPassword(userId) {
+  const newPassword = prompt("新しいパスワードを入力してください:");
+  if (!newPassword) return;
+  
+  if (newPassword.length < 6) {
+    alert("パスワードは6文字以上である必要があります");
+    return;
+  }
+
+  const confirmPassword = prompt("パスワードを再入力して確認してください:");
+  if (newPassword !== confirmPassword) {
+    alert("パスワードが一致しません");
+    return;
+  }
+
+  if (!confirm(`このユーザーのパスワードをリセットしますか？\n新パスワード: ${newPassword}`)) return;
+
+  const currentUser = JSON.parse(localStorage.getItem("authUser") || "{}");
+
+  try {
+    const res = await fetch(BASE_URL + "customerResetUserPassword", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userId: userId,
+        newPassword: newPassword,
+        dbName: currentUser.dbName,
+        role: currentUser.role,
+        username: currentUser.username
+      })
+    });
+
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.error || "パスワードリセットに失敗しました");
+
+    alert("パスワードリセット成功");
+  } catch (err) {
+    console.error("パスワードリセットエラー:", err);
+    alert("パスワードリセット失敗: " + err.message);
   }
 }
