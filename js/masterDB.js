@@ -136,7 +136,7 @@ function ensureMasterSidebarExists() {
         <button onclick="closeMasterSidebar()" class="mb-4 text-red-500 font-semibold w-full text-left md:w-auto">Close</button>
         <div id="masterSidebarContent"></div>
       </div>
-      <div id="masterSidebarOverlay" class="fixed inset-0 bg-black bg-opacity-30 hidden z-40 md:hidden" onclick="closeMasterSidebar()"></div>
+      <div id="masterSidebarOverlay" class="fixed inset-0 bg-black bg-opacity-30 hidden z-40" onclick="closeMasterSidebar()"></div>
     `;
     document.body.insertAdjacentHTML("beforeend", sidebarHTML);
   }
@@ -202,9 +202,9 @@ function showCustomerMasterSidebar(data) {
   ensureMasterSidebarExists();
   document.getElementById("masterSidebar").classList.remove("translate-x-full");
 
-  // Show overlay on small screens
+  // Show overlay on all screen sizes
   const overlay = document.getElementById("masterSidebarOverlay");
-  if (window.innerWidth < 768 && overlay) {
+  if (overlay) {
     overlay.classList.remove("hidden");
   }
 
@@ -382,8 +382,14 @@ function showCustomerMasterSidebar(data) {
 
 function closeMasterSidebar() {
   const sidebar = document.getElementById("masterSidebar");
+  const overlay = document.getElementById("masterSidebarOverlay");
+  
   if (sidebar) {
     sidebar.classList.add("translate-x-full");
+  }
+  
+  if (overlay) {
+    overlay.classList.add("hidden");
   }
 }
 
@@ -473,6 +479,12 @@ function openBlankMasterForm() {
   `;
 
   sidebar.classList.remove("translate-x-full");
+
+  // Show overlay
+  const overlay = document.getElementById("masterSidebarOverlay");
+  if (overlay) {
+    overlay.classList.remove("hidden");
+  }
 
   // Preview logic
   document.getElementById("newMasterImageInput").addEventListener("change", function () {
