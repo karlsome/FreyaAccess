@@ -203,6 +203,9 @@ function showCustomerMasterSidebar(data) {
   const username = currentUser.username || "unknown";
   const recordId = data._id?.$oid || data._id;
   const fields = Object.keys(data).filter(k => k !== "_id");
+  
+  // Check if user can edit (only admin or masterUser)
+  const canEdit = ["admin", "masterUser"].includes(currentUser.role);
 
   const imageHTML = data.imageURL
     ? `<img id="masterImagePreview" src="${data.imageURL}" alt="Product Image" class="w-full max-h-64 object-contain rounded shadow mb-2" />`
@@ -213,86 +216,97 @@ function showCustomerMasterSidebar(data) {
     <div class="mb-4">
       <h4 class="text-lg font-semibold">製品画像</h4>
       ${imageHTML}
-      <div id="imageActionWrapper" class="hidden mt-2">
-        <button onclick="document.getElementById('masterImageUploadInput').click()" class="text-blue-600 underline text-sm">
-          ${data.imageURL ? "Update Image" : "Upload Image"}
-        </button>
-        <input type="file" id="masterImageUploadInput" accept="image/*" class="hidden" />
-      </div>
+      ${canEdit ? `
+        <div id="imageActionWrapper" class="hidden mt-2">
+          <button onclick="document.getElementById('masterImageUploadInput').click()" class="text-blue-600 underline text-sm">
+            ${data.imageURL ? "Update Image" : "Upload Image"}
+          </button>
+          <input type="file" id="masterImageUploadInput" accept="image/*" class="hidden" />
+        </div>
+      ` : ''}
     </div>
 
     <div class="space-y-2">
       ${fields.map(f => `
         <div class="flex items-center gap-2">
           <label class="font-medium w-32 shrink-0">${f}</label>
-          <input type="text" class="editable-master p-1 border rounded w-full bg-gray-100" data-key="${f}" value="${data[f] ?? ""}" disabled />
+          <input type="text" class="editable-master p-1 border rounded w-full ${canEdit ? 'bg-gray-100' : 'bg-gray-200'}" data-key="${f}" value="${data[f] ?? ""}" disabled />
         </div>
       `).join("")}
     </div>
 
-    <div class="mt-4 flex gap-2">
-      <button id="editMasterBtn" class="text-blue-600 underline text-sm">Edit</button>
-      <button id="saveMasterBtn" class="hidden bg-green-500 text-white px-3 py-1 rounded text-sm">OK</button>
-      <button id="cancelMasterBtn" class="hidden bg-gray-300 text-black px-3 py-1 rounded text-sm">Cancel</button>
-    </div>
+    ${canEdit ? `
+      <div class="mt-4 flex gap-2">
+        <button id="editMasterBtn" class="text-blue-600 underline text-sm">Edit</button>
+        <button id="saveMasterBtn" class="hidden bg-green-500 text-white px-3 py-1 rounded text-sm">OK</button>
+        <button id="cancelMasterBtn" class="hidden bg-gray-300 text-black px-3 py-1 rounded text-sm">Cancel</button>
+      </div>
+    ` : `
+      <div class="mt-4">
+        <p class="text-sm text-gray-500 italic">読み取り専用 - 編集権限がありません</p>
+      </div>
+    `}
   `;
 
   sidebar.classList.remove("translate-x-full");
 
-  const inputs = () => Array.from(document.querySelectorAll(".editable-master"));
+  // Only add edit functionality if user has permission
+  if (canEdit) {
+    const inputs = () => Array.from(document.querySelectorAll(".editable-master"));
 
-  document.getElementById("editMasterBtn").onclick = () => {
-    inputs().forEach(i => i.disabled = false);
-    document.getElementById("saveMasterBtn").classList.remove("hidden");
-    document.getElementById("cancelMasterBtn").classList.remove("hidden");
-    document.getElementById("imageActionWrapper").classList.remove("hidden");
-  };
+    document.getElementById("editMasterBtn").onclick = () => {
+      inputs().forEach(i => i.disabled = false);
+      document.getElementById("saveMasterBtn").classList.remove("hidden");
+      document.getElementById("cancelMasterBtn").classList.remove("hidden");
+      document.getElementById("imageActionWrapper").classList.remove("hidden");
+    };
 
-  document.getElementById("cancelMasterBtn").onclick = () => showCustomerMasterSidebar(data);
+    document.getElementById("cancelMasterBtn").onclick = () => showCustomerMasterSidebar(data);
 
-  document.getElementById("saveMasterBtn").onclick = async () => {
-    const updated = {};
-    inputs().forEach(input => {
-      const key = input.dataset.key;
-      updated[key] = input.value.trim();
-    });
+    document.getElementById("saveMasterBtn").onclick = async () => {
+      const updated = {};
+      inputs().forEach(input => {
+        const key = input.dataset.key;
+        updated[key] = input.value.trim();
+      });
 
-    const res = await fetch(BASE_URL + "customerUpdateMasterDB", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ dbName, recordId, updateData: updated, role: currentUser.role, username })
-    });
-
-    const result = await res.json();
-    if (!res.ok || !result.modifiedCount) return alert("Update failed");
-
-    alert("Updated successfully.");
-    closeMasterSidebar();
-    loadCustomerMasterDB();
-  };
-
-  document.getElementById("masterImageUploadInput").addEventListener("change", async function () {
-    const file = this.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onloadend = async () => {
-      const base64 = reader.result.split(",")[1];
-      const res = await fetch(BASE_URL + "customerUploadMasterImage", {
+      const res = await fetch(BASE_URL + "customerUpdateMasterDB", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ base64, label: "main", recordId, username, dbName })
+        body: JSON.stringify({ dbName, recordId, updateData: updated, role: currentUser.role, username })
       });
 
       const result = await res.json();
-      if (!res.ok || !result.imageURL) return alert("Image upload failed");
+      if (!res.ok || !result.modifiedCount) return alert("Update failed");
 
-      alert("Image uploaded.");
-      data.imageURL = result.imageURL;
-      showCustomerMasterSidebar(data);
+      alert("Updated successfully.");
+      closeMasterSidebar();
+      loadCustomerMasterDB();
     };
-    reader.readAsDataURL(file);
-  });
+
+    document.getElementById("masterImageUploadInput").addEventListener("change", async function () {
+      const file = this.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64 = reader.result.split(",")[1];
+        const res = await fetch(BASE_URL + "customerUploadMasterImage", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ base64, label: "main", recordId, username, dbName })
+        });
+
+        const result = await res.json();
+        if (!res.ok || !result.imageURL) return alert("Image upload failed");
+
+        alert("Image uploaded.");
+        data.imageURL = result.imageURL;
+        showCustomerMasterSidebar(data);
+      };
+      reader.readAsDataURL(file);
+    });
+  }
 }
 
 function closeMasterSidebar() {
