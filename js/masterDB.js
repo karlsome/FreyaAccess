@@ -44,7 +44,7 @@ function renderCustomerMasterTable(data) {
     <div class="mb-4 flex justify-between items-center">
       <div class="flex gap-2">
         <button id="showMainDataTab" class="px-4 py-2 bg-blue-500 text-white rounded text-sm" onclick="showMasterDBTab('data')">データ一覧</button>
-        <button id="showMainHistoryTab" class="px-4 py-2 bg-gray-300 text-gray-700 rounded text-sm" onclick="showMasterDBTab('history')">作成履歴</button>
+        <button id="showMainHistoryTab" class="px-4 py-2 bg-gray-300 text-gray-700 rounded text-sm" onclick="showMasterDBTab('history')">作成・削除履歴</button>
       </div>
       ${showDeleteButton ? `
         <button id="deleteSelectedBtn" onclick="deleteSelectedMasterRecords()" class="bg-red-600 text-white px-3 py-1 rounded text-sm opacity-50 cursor-not-allowed" disabled>
@@ -395,15 +395,20 @@ async function deleteSelectedMasterRecords() {
   if (!confirmDelete) return;
 
   const recordIds = checkboxes.map(cb => cb.getAttribute("data-id"));
-
   const currentUser = JSON.parse(localStorage.getItem("authUser") || "{}");
 
   try {
-    const res = await fetch(BASE_URL + "customerBulkDelete", {
+    // First, get the records to be deleted so we can log their data
+    const recordsToDelete = customerMasterData.filter(record => 
+      recordIds.includes(record._id?.$oid || record._id)
+    );
+
+    const res = await fetch(BASE_URL + "customerBulkDeleteWithHistory", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         recordIds,
+        recordsData: recordsToDelete,
         dbName: currentUser.dbName,
         collectionName: "masterDB",
         role: currentUser.role,
@@ -560,13 +565,13 @@ function showMasterDBTab(tabName) {
     dataContent.classList.add('hidden');
     historyContent.classList.remove('hidden');
     
-    // Load creation history when switching to history tab
-    loadMasterDBCreationHistory();
+    // Load creation and deletion history when switching to history tab
+    loadMasterDBHistory();
   }
 }
 
-// Function to load creation history for masterDB
-async function loadMasterDBCreationHistory() {
+// Function to load creation and deletion history for masterDB
+async function loadMasterDBHistory() {
   const container = document.getElementById('masterHistoryContainer');
   const currentUser = JSON.parse(localStorage.getItem("authUser") || "{}");
   
@@ -580,41 +585,54 @@ async function loadMasterDBCreationHistory() {
     });
 
     if (!response.ok) {
-      throw new Error('Failed to load creation history');
+      throw new Error('Failed to load history');
     }
 
     const history = await response.json();
     renderMasterDBHistoryList(history);
   } catch (error) {
-    console.error('Error loading creation history:', error);
-    container.innerHTML = '<p class="text-sm text-red-500">作成履歴の読み込みに失敗しました。</p>';
+    console.error('Error loading history:', error);
+    container.innerHTML = '<p class="text-sm text-red-500">履歴の読み込みに失敗しました。</p>';
   }
 }
 
-// Function to render creation history list
+// Function to render creation/deletion history list
 function renderMasterDBHistoryList(history) {
   const container = document.getElementById('masterHistoryContainer');
   
   if (!history || history.length === 0) {
-    container.innerHTML = '<p class="text-sm text-gray-500">作成履歴がありません。</p>';
+    container.innerHTML = '<p class="text-sm text-gray-500">履歴がありません。</p>';
     return;
   }
 
   const historyHTML = history.map(entry => {
     const date = new Date(entry.timestamp).toLocaleString('ja-JP');
     const recordInfo = entry.recordData || {};
+    const isDeleteAction = entry.action && (entry.action.includes('削除') || entry.action.toLowerCase().includes('delete'));
+    
+    // Styling based on action type
+    const containerClass = isDeleteAction 
+      ? "border rounded p-4 bg-red-50 shadow-sm hover:shadow-md transition-shadow border-red-200"
+      : "border rounded p-4 bg-white shadow-sm hover:shadow-md transition-shadow";
+    
+    const badgeClass = isDeleteAction
+      ? "text-xs bg-red-100 text-red-800 px-2 py-1 rounded font-medium"
+      : "text-xs bg-green-100 text-green-800 px-2 py-1 rounded font-medium";
+    
+    const userLabel = isDeleteAction ? "削除者" : "作成者";
+    const userValue = isDeleteAction ? (entry.deletedBy || entry.createdBy || 'Unknown') : (entry.createdBy || 'Unknown');
     
     return `
-      <div class="border rounded p-4 bg-white shadow-sm hover:shadow-md transition-shadow">
+      <div class="${containerClass}">
         <div class="flex justify-between items-start mb-3">
           <div>
-            <span class="font-medium text-lg text-gray-800">${recordInfo['品番'] || 'Unknown Product'}</span>
-            <div class="text-sm text-gray-600">
-              <span class="font-medium">作成者:</span> ${entry.createdBy || 'Unknown'}
+            <span class="font-medium text-lg ${isDeleteAction ? 'text-red-800' : 'text-gray-800'}">${recordInfo['品番'] || 'Unknown Product'}</span>
+            <div class="text-sm ${isDeleteAction ? 'text-red-700' : 'text-gray-600'}">
+              <span class="font-medium">${userLabel}:</span> ${userValue}
             </div>
-            <div class="text-xs text-gray-500">${date}</div>
+            <div class="text-xs ${isDeleteAction ? 'text-red-500' : 'text-gray-500'}">${date}</div>
           </div>
-          <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded font-medium">${entry.action || '新規作成'}</span>
+          <span class="${badgeClass}">${entry.action || (isDeleteAction ? '削除' : '新規作成')}</span>
         </div>
         
         <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
@@ -622,15 +640,21 @@ function renderMasterDBHistoryList(history) {
             .filter(([key, value]) => key !== '_id' && key !== 'imageURL' && key !== 'changeHistory' && value)
             .map(([key, value]) => `
               <div class="flex">
-                <span class="font-medium text-gray-700 w-20 flex-shrink-0">${key}:</span>
-                <span class="text-gray-600 break-all">${value}</span>
+                <span class="font-medium ${isDeleteAction ? 'text-red-700' : 'text-gray-700'} w-20 flex-shrink-0">${key}:</span>
+                <span class="${isDeleteAction ? 'text-red-600' : 'text-gray-600'} break-all">${value}</span>
               </div>
             `).join('')}
         </div>
         
         ${recordInfo.imageURL ? `
-          <div class="mt-3 pt-3 border-t">
-            <img src="${recordInfo.imageURL}" alt="Product Image" class="w-24 h-24 object-cover rounded border" />
+          <div class="mt-3 pt-3 border-t ${isDeleteAction ? 'border-red-200' : ''}">
+            <img src="${recordInfo.imageURL}" alt="Product Image" class="w-24 h-24 object-cover rounded border ${isDeleteAction ? 'opacity-70' : ''}" />
+          </div>
+        ` : ''}
+        
+        ${isDeleteAction ? `
+          <div class="mt-2 text-xs text-red-600 italic">
+            ⚠️ このレコードは削除されました
           </div>
         ` : ''}
       </div>
