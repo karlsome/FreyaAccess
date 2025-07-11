@@ -9,6 +9,7 @@ const translations = {
     
     // Common UI elements
     search: "Search...",
+    searchLabel: "Search",
     logout: "Logout",
     role: "Role",
     loading: "Loading...",
@@ -151,7 +152,8 @@ const translations = {
     showingResults: "Showing",
     to: "to",
     totalResults: "total results",
-    noHistoryFound: "No history records found matching the criteria."
+    noHistoryFound: "No history records found matching the criteria.",
+    useHistorySearchBelow: "Use history search below"
   },
   
   ja: {
@@ -163,6 +165,7 @@ const translations = {
     
     // Common UI elements
     search: "検索...",
+    searchLabel: "検索",
     logout: "ログアウト",
     role: "役割",
     loading: "読み込み中...",
@@ -289,7 +292,8 @@ const translations = {
     showingResults: "表示中",
     to: "〜",
     totalResults: "件中",
-    noHistoryFound: "条件に一致する履歴レコードが見つかりません。"
+    noHistoryFound: "条件に一致する履歴レコードが見つかりません。",
+    useHistorySearchBelow: "下の履歴検索をご使用ください"
   }
 };
 

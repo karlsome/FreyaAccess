@@ -165,6 +165,23 @@ function renderCustomerMasterTable(data) {
 
   tableContainer.innerHTML = tableHTML;
 
+  // Ensure both search inputs are in correct state (enabled for data tab by default)
+  const topSearchInput = document.getElementById('searchInput');
+  const masterSearchInput = document.getElementById('masterSearchInput');
+  
+  if (topSearchInput) {
+    topSearchInput.disabled = false;
+    topSearchInput.classList.remove('bg-gray-100', 'text-gray-400', 'cursor-not-allowed');
+    topSearchInput.classList.add('bg-white', 'text-gray-900');
+    topSearchInput.placeholder = t('searchPlaceholder');
+  }
+  if (masterSearchInput) {
+    masterSearchInput.disabled = false;
+    masterSearchInput.classList.remove('bg-gray-100', 'text-gray-400', 'cursor-not-allowed');
+    masterSearchInput.classList.add('bg-white', 'text-gray-900');
+    masterSearchInput.placeholder = t('searchPlaceholder');
+  }
+
   // Select All functionality
   const selectAll = document.getElementById("selectAllMasterRows");
   if (selectAll) {
@@ -743,6 +760,8 @@ function showMasterDBTab(tabName) {
   const historyTab = document.getElementById('showMainHistoryTab');
   const dataContent = document.getElementById('dataTabContent');
   const historyContent = document.getElementById('historyTabContent');
+  const topSearchInput = document.getElementById('searchInput');
+  const masterSearchInput = document.getElementById('masterSearchInput');
 
   if (tabName === 'data') {
     dataTab.classList.remove('bg-gray-300', 'text-gray-700');
@@ -752,6 +771,20 @@ function showMasterDBTab(tabName) {
     
     dataContent.classList.remove('hidden');
     historyContent.classList.add('hidden');
+    
+    // Enable both search inputs for data tab
+    if (topSearchInput) {
+      topSearchInput.disabled = false;
+      topSearchInput.classList.remove('bg-gray-100', 'text-gray-400', 'cursor-not-allowed');
+      topSearchInput.classList.add('bg-white', 'text-gray-900');
+      topSearchInput.placeholder = t('searchPlaceholder');
+    }
+    if (masterSearchInput) {
+      masterSearchInput.disabled = false;
+      masterSearchInput.classList.remove('bg-gray-100', 'text-gray-400', 'cursor-not-allowed');
+      masterSearchInput.classList.add('bg-white', 'text-gray-900');
+      masterSearchInput.placeholder = t('searchPlaceholder');
+    }
   } else if (tabName === 'history') {
     historyTab.classList.remove('bg-gray-300', 'text-gray-700');
     historyTab.classList.add('bg-blue-500', 'text-white');
@@ -760,6 +793,22 @@ function showMasterDBTab(tabName) {
     
     dataContent.classList.add('hidden');
     historyContent.classList.remove('hidden');
+    
+    // Disable and grey out both search inputs for history tab
+    if (topSearchInput) {
+      topSearchInput.disabled = true;
+      topSearchInput.classList.remove('bg-white', 'text-gray-900');
+      topSearchInput.classList.add('bg-gray-100', 'text-gray-400', 'cursor-not-allowed');
+      topSearchInput.placeholder = t('useHistorySearchBelow');
+      topSearchInput.value = ''; // Clear any existing search
+    }
+    if (masterSearchInput) {
+      masterSearchInput.disabled = true;
+      masterSearchInput.classList.remove('bg-white', 'text-gray-900');
+      masterSearchInput.classList.add('bg-gray-100', 'text-gray-400', 'cursor-not-allowed');
+      masterSearchInput.placeholder = t('useHistorySearchBelow');
+      masterSearchInput.value = ''; // Clear any existing search
+    }
     
     // Load creation and deletion history when switching to history tab
     loadMasterDBHistory();

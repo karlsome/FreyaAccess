@@ -164,7 +164,7 @@ function loadPage(page) {
           <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <div class="flex items-center gap-2 mb-4">
               <i class="ri-search-line text-lg text-gray-600"></i>
-              <h3 class="text-lg font-semibold text-gray-900">検索</h3>
+              <h3 class="text-lg font-semibold text-gray-900">${t("searchLabel")}</h3>
             </div>
             <div class="relative">
               <input type="text" id="masterSearchInput" class="w-full px-4 py-3 pl-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" placeholder="${t("searchPlaceholder")}" />
