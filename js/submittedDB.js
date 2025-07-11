@@ -9,7 +9,7 @@ let currentFilters = {};
 let selectedRows = new Set();
 
 let discoveredTableHeaders = []; 
-let exportColumnSelection = {}; 
+let exportColumnSelection = {};
 
 /**
  * Dynamically discovers headers from all data records and sets a preferred order.
@@ -127,13 +127,20 @@ function renderTable(data) {
     }
 
     let headerHtml = '<tr>';
-    headerHtml += `<th class="p-3 w-10 text-center"><input type="checkbox" id="checkAllRows" onchange="toggleCheckAll(this)"></th>`;
-    headerHtml += `<th class="p-3 w-12 text-left text-sm font-semibold text-gray-600">#</th>`;
+    headerHtml += `<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
+        <input type="checkbox" id="checkAllRows" onchange="toggleCheckAll(this)" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+    </th>`;
+    headerHtml += `<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-16">#</th>`;
     
     discoveredTableHeaders.forEach(header => {
-        const sortIcon = currentSort.column === header.key ? (currentSort.direction === 'asc' ? '↑' : '↓') : '';
-        headerHtml += `<th class="p-3 text-left text-sm font-semibold text-gray-600 tracking-wider cursor-pointer select-none" onclick="handleSort('${header.key}')">
-            ${header.label} <span class="text-gray-400">${sortIcon}</span>
+        const sortIcon = currentSort.column === header.key ? 
+            (currentSort.direction === 'asc' ? '<i class="ri-arrow-up-line ml-1"></i>' : '<i class="ri-arrow-down-line ml-1"></i>') : 
+            '<i class="ri-arrow-up-down-line ml-1 opacity-0 group-hover:opacity-50"></i>';
+        headerHtml += `<th class="group px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none hover:bg-gray-100 transition-colors" onclick="handleSort('${header.key}')">
+            <div class="flex items-center">
+                ${header.label} 
+                ${sortIcon}
+            </div>
         </th>`;
     });
     headerHtml += '</tr>';
@@ -142,11 +149,19 @@ function renderTable(data) {
     data.forEach((row, index) => {
         const rowNumberOnPage = index + 1; 
         const isChecked = selectedRows.has(row._id); 
-        bodyHtml += `<tr class="border-b border-gray-200 hover:bg-gray-50">`;
-        bodyHtml += `<td class="p-3 text-center"><input type="checkbox" class="row-checkbox" data-id="${row._id}" onchange="toggleRowSelection(this)" ${isChecked ? 'checked' : ''}></td>`;
-        bodyHtml += `<td class="p-3 text-sm text-gray-500">${rowNumberOnPage}</td>`;
+        bodyHtml += `<tr class="hover:bg-gray-50 transition-colors">`;
+        bodyHtml += `<td class="px-6 py-4 whitespace-nowrap text-center">
+            <input type="checkbox" class="row-checkbox rounded border-gray-300 text-blue-600 focus:ring-blue-500" data-id="${row._id}" onchange="toggleRowSelection(this)" ${isChecked ? 'checked' : ''}>
+        </td>`;
+        bodyHtml += `<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-medium">${rowNumberOnPage}</td>`;
         discoveredTableHeaders.forEach(header => {
-            bodyHtml += `<td class="p-0"><div class="p-3 text-sm text-gray-700 whitespace-nowrap cursor-pointer" onclick='showDetailsPanel(${JSON.stringify(row)})'>${row[header.key] || ''}</div></td>`;
+            const cellValue = row[header.key] || '';
+            const cellClass = getStatusClass(header.key, cellValue);
+            bodyHtml += `<td class="px-6 py-4 whitespace-nowrap">
+                <div class="text-sm cursor-pointer hover:text-blue-600 transition-colors ${cellClass}" onclick='showDetailsPanel(${JSON.stringify(row)})'>
+                    ${cellValue}
+                </div>
+            </td>`;
         });
         bodyHtml += `</tr>`;
     });
@@ -155,14 +170,26 @@ function renderTable(data) {
         "送信済みログはありません。" : "条件に一致するログはありません。";
 
     if (data.length === 0) {
-        tableContainer.innerHTML = `<div class="text-center text-gray-500 py-4">${noDataMessage}</div>`;
+        tableContainer.innerHTML = `
+            <div class="text-center py-12">
+                <div class="mx-auto w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                    <i class="ri-inbox-line text-3xl text-gray-400"></i>
+                </div>
+                <h3 class="text-lg font-medium text-gray-900 mb-2">${t("noData")}</h3>
+                <p class="text-gray-500">${noDataMessage}</p>
+            </div>`;
     } else {
-        tableContainer.innerHTML = `<div class="overflow-x-auto">
-            <table class="min-w-full bg-white">
-                <thead class="bg-gray-100">${headerHtml}</thead>
-                <tbody>${bodyHtml}</tbody>
-            </table>
-        </div>`;
+        tableContainer.innerHTML = `
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        ${headerHtml}
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        ${bodyHtml}
+                    </tbody>
+                </table>
+            </div>`;
     }
 }
 
@@ -174,15 +201,61 @@ function renderPagination() {
     let summary = `全 ${totalRecords} 件中 ${startRecord} - ${endRecord} 件を表示`;
     if (totalRecords === 0) summary = "結果がありません。";
     
-    let paginationHtml = `<div class="flex items-center justify-between mt-4 text-sm text-gray-600"><span>${summary}</span>`;
+    let paginationHtml = `
+        <div class="bg-white px-6 py-4 flex items-center justify-between border-t border-gray-200 rounded-b-xl">
+            <div class="flex-1 flex justify-between sm:hidden">
+                <button class="relative inline-flex items-center px-4 py-2 text-sm font-medium rounded-md text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 ${currentPage === 1 ? 'opacity-50 cursor-not-allowed' : ''}" onclick="changePage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>
+                    前へ
+                </button>
+                <button class="ml-3 relative inline-flex items-center px-4 py-2 text-sm font-medium rounded-md text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 ${currentPage === totalPages ? 'opacity-50 cursor-not-allowed' : ''}" onclick="changePage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>
+                    次へ
+                </button>
+            </div>
+            <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                <div>
+                    <p class="text-sm text-gray-700">
+                        ${summary}
+                    </p>
+                </div>
+                <div>
+                    <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">`;
+    
     if (totalPages > 1) {
-        paginationHtml += `<div class="flex items-center gap-2">
-            <button class="px-3 py-1 border rounded ${currentPage === 1 ? 'bg-gray-100 cursor-not-allowed text-gray-400' : 'bg-white hover:bg-gray-50'}" onclick="changePage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>前へ</button>
-            <span>ページ ${currentPage} / ${totalPages}</span>
-            <button class="px-3 py-1 border rounded ${currentPage === totalPages ? 'bg-gray-100 cursor-not-allowed text-gray-400' : 'bg-white hover:bg-gray-50'}" onclick="changePage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>次へ</button>
-        </div>`;
+        // Previous button
+        paginationHtml += `
+            <button class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 ${currentPage === 1 ? 'opacity-50 cursor-not-allowed' : ''}" onclick="changePage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>
+                <i class="ri-arrow-left-s-line"></i>
+            </button>`;
+        
+        // Page numbers
+        let startPage = Math.max(1, currentPage - 2);
+        let endPage = Math.min(totalPages, startPage + 4);
+        
+        if (endPage - startPage < 4) {
+            startPage = Math.max(1, endPage - 4);
+        }
+        
+        for (let i = startPage; i <= endPage; i++) {
+            const isActive = i === currentPage;
+            paginationHtml += `
+                <button class="relative inline-flex items-center px-4 py-2 border text-sm font-medium ${isActive ? 'z-10 bg-blue-50 border-blue-500 text-blue-600' : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'}" onclick="changePage(${i})">
+                    ${i}
+                </button>`;
+        }
+        
+        // Next button
+        paginationHtml += `
+            <button class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 ${currentPage === totalPages ? 'opacity-50 cursor-not-allowed' : ''}" onclick="changePage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>
+                <i class="ri-arrow-right-s-line"></i>
+            </button>`;
     }
-    paginationHtml += `</div>`;
+    
+    paginationHtml += `
+                    </nav>
+                </div>
+            </div>
+        </div>`;
+    
     paginationContainer.innerHTML = paginationHtml;
 }
 
@@ -265,11 +338,22 @@ function showDetailsPanel(record) {
     const panelContent = document.getElementById('detailsPanelContent');
     const panelOverlay = document.getElementById('detailsPanelOverlay');
     document.getElementById('detailsPanelTitle').textContent = record['品番'] || t('details'); 
+    
     let contentHtml = '';
     const preferredOrder = ['品番', '日付', '時間', 'アクション', 'デバイス名', 'ユニークID', 'コメント', '職長', '班長', 'QR1ステータス', 'QR2ステータス', 'QR3ステータス', 'データ送信ステータス'];
     const displayedKeys = new Set();
 
-    const createRowHTML = (key, value) => `<div class="py-2 px-4 border-b"><p class="text-xs text-gray-500 break-all">${key}</p><p class="text-base text-gray-900 break-words">${value === undefined || value === null ? '-' : value}</p></div>`;
+    const createRowHTML = (key, value) => {
+        const displayValue = value === undefined || value === null ? '-' : value;
+        const valueClass = getStatusClass(key, displayValue);
+        return `
+            <div class="py-4 border-b border-gray-100 last:border-b-0">
+                <dt class="text-sm font-medium text-gray-500 mb-1">${key}</dt>
+                <dd class="text-sm ${valueClass} break-words">${displayValue}</dd>
+            </div>`;
+    };
+    
+    contentHtml = '<dl class="space-y-0">';
     
     preferredOrder.forEach(key => { 
         if (record.hasOwnProperty(key)) {
@@ -277,11 +361,14 @@ function showDetailsPanel(record) {
             displayedKeys.add(key);
         }
     });
+    
     for (const key in record) { 
         if (key !== '_id' && !displayedKeys.has(key) && record.hasOwnProperty(key)) {
             contentHtml += createRowHTML(key, record[key]); 
         }
     }
+    
+    contentHtml += '</dl>';
     panelContent.innerHTML = contentHtml;
     panel.classList.remove('translate-x-full');
     panelOverlay.classList.remove('hidden');
@@ -460,24 +547,131 @@ async function executeExportPdf() {
 async function loadSubmittedDbPage() {
     const mainContent = document.getElementById("mainContent");
     mainContent.innerHTML = `
-        <h2 class="text-2xl font-semibold mb-4">${t("submittedLog")}</h2>
-        <div class="bg-white p-4 rounded-lg shadow-md border border-gray-200 mb-6">
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
-                <div class="flex flex-col"><label for="fromDateFilter" class="text-xs text-gray-600 mb-1">${t("startDate")}</label><input type="date" id="fromDateFilter" class="p-2 border rounded w-full"></div>
-                <div class="flex flex-col"><label for="toDateFilter" class="text-xs text-gray-600 mb-1">${t("endDate")}</label><input type="date" id="toDateFilter" class="p-2 border rounded w-full"></div>
-                <div class="flex flex-col"><label for="actionFilter" class="text-xs text-gray-600 mb-1">${t("action")}</label><select id="actionFilter" class="p-2 border rounded w-full bg-white"></select></div>
-                <div class="flex flex-col"><label for="hinbanFilter" class="text-xs text-gray-600 mb-1">${t("productNumber")}</label><input type="text" id="hinbanFilter" class="p-2 border rounded w-full" placeholder="${t("searchPlaceholder")}"></div>
-                <button onclick="applyFilters()" class="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700 w-full h-10">${t("applyFilter")}</button>
+        <div class="space-y-6">
+            <!-- Header Section -->
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900">${t("submittedLog")}</h1>
+                    <p class="text-gray-600 mt-1">データ送信履歴とログを確認できます</p>
+                </div>
+                <div class="flex gap-3">
+                    <button onclick="initiateExport('csv')" class="inline-flex items-center px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors shadow-sm">
+                        <i class="ri-file-excel-2-line mr-2"></i>
+                        ${t("csvExport")}
+                    </button>
+                    <button onclick="initiateExport('pdf')" class="inline-flex items-center px-4 py-2 bg-rose-600 text-white rounded-lg hover:bg-rose-700 transition-colors shadow-sm">
+                        <i class="ri-file-pdf-line mr-2"></i>
+                        ${t("pdfExport")}
+                    </button>
+                </div>
             </div>
-            <div class="flex items-center justify-between mt-4">
-                 <div class="flex items-center gap-2 text-sm"><label for="itemsPerPageSelector" class="text-gray-600">${t("itemsPerPage")}:</label><select id="itemsPerPageSelector" class="p-1 border rounded bg-white" onchange="changeItemsPerPage(this)"><option value="10">10</option><option value="50" selected>50</option><option value="100">100</option></select><span class="text-gray-600">${t("items")}</span></div>
-                <div class="flex gap-2"><button onclick="initiateExport('csv')" class="bg-green-600 text-white px-4 py-2 rounded text-sm hover:bg-green-700">${t("csvExport")}</button><button onclick="initiateExport('pdf')" class="bg-red-600 text-white px-4 py-2 rounded text-sm hover:bg-red-700">${t("pdfExport")}</button></div>
+
+            <!-- Filter Card -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <div class="flex items-center gap-2 mb-4">
+                    <i class="ri-filter-3-line text-lg text-gray-600"></i>
+                    <h3 class="text-lg font-semibold text-gray-900">${t("filters")}</h3>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                    <!-- Date Range -->
+                    <div class="space-y-1">
+                        <label for="fromDateFilter" class="block text-sm font-medium text-gray-700">${t("startDate")}</label>
+                        <input type="date" id="fromDateFilter" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
+                    </div>
+                    <div class="space-y-1">
+                        <label for="toDateFilter" class="block text-sm font-medium text-gray-700">${t("endDate")}</label>
+                        <input type="date" id="toDateFilter" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
+                    </div>
+                    
+                    <!-- Action Filter -->
+                    <div class="space-y-1">
+                        <label for="actionFilter" class="block text-sm font-medium text-gray-700">${t("action")}</label>
+                        <select id="actionFilter" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors">
+                            <option value="">${t("allActions")}</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Product Number Search -->
+                    <div class="space-y-1">
+                        <label for="hinbanFilter" class="block text-sm font-medium text-gray-700">${t("productNumber")}</label>
+                        <div class="relative">
+                            <input type="text" id="hinbanFilter" class="w-full px-3 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" placeholder="${t("searchPlaceholder")}">
+                            <i class="ri-search-line absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <button onclick="applyFilters()" class="inline-flex items-center justify-center px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm">
+                        <i class="ri-filter-line mr-2"></i>
+                        ${t("applyFilter")}
+                    </button>
+                    
+                    <div class="flex items-center gap-2 text-sm text-gray-600">
+                        <label for="itemsPerPageSelector" class="font-medium">${t("itemsPerPage")}:</label>
+                        <select id="itemsPerPageSelector" class="px-3 py-1 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500" onchange="changeItemsPerPage(this)">
+                            <option value="10">10</option>
+                            <option value="50" selected>50</option>
+                            <option value="100">100</option>
+                        </select>
+                        <span>${t("items")}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Data Table Card -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
+                    <h3 class="text-lg font-semibold text-gray-900">${t("dataList")}</h3>
+                </div>
+                <div id="submittedTableContainer" class="overflow-x-auto">
+                    <!-- Table content will be loaded here -->
+                </div>
+            </div>
+
+            <!-- Pagination -->
+            <div id="paginationContainer" class="flex justify-center">
+                <!-- Pagination will be loaded here -->
             </div>
         </div>
-        <div id="submittedTableContainer"></div><div id="paginationContainer"></div>
+
+        <!-- Details Panel -->
         <div id="detailsPanelOverlay" class="fixed inset-0 bg-black bg-opacity-50 hidden z-30" onclick="hideDetailsPanel()"></div>
-        <div id="detailsPanel" class="fixed top-0 right-0 h-full w-full max-w-md bg-white shadow-xl transform translate-x-full transition-transform duration-300 ease-in-out z-40 flex flex-col"><div class="flex items-center justify-between p-4 border-b"><h3 id="detailsPanelTitle" class="text-lg font-semibold"></h3><button onclick="hideDetailsPanel()" class="text-gray-500 hover:text-gray-800 text-2xl">&times;</button></div><div id="detailsPanelContent" class="flex-1 overflow-y-auto"></div></div>
-        <div id="exportOptionsModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-[60] flex items-center justify-center p-4"><div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm"><h3 class="text-lg font-semibold mb-4">エクスポートする列を選択</h3><div id="columnSelectionContainer" class="space-y-1 max-h-60 overflow-y-auto mb-6 border p-2 rounded"></div><div class="flex justify-end gap-2"><button onclick="closeExportModal()" class="bg-gray-200 text-gray-800 px-4 py-2 rounded text-sm hover:bg-gray-300">キャンセル</button><button id="confirmExportBtn" class="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">エクスポート実行</button></div></div></div>
+        <div id="detailsPanel" class="fixed top-0 right-0 h-full w-full max-w-lg bg-white shadow-xl transform translate-x-full transition-transform duration-300 ease-in-out z-40 flex flex-col">
+            <div class="flex items-center justify-between p-6 border-b border-gray-200 bg-gray-50">
+                <h3 id="detailsPanelTitle" class="text-xl font-semibold text-gray-900"></h3>
+                <button onclick="hideDetailsPanel()" class="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors">
+                    <i class="ri-close-line text-xl"></i>
+                </button>
+            </div>
+            <div id="detailsPanelContent" class="flex-1 overflow-y-auto p-6">
+                <!-- Detail content will be loaded here -->
+            </div>
+        </div>
+
+        <!-- Export Options Modal -->
+        <div id="exportOptionsModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-[60] flex items-center justify-center p-4">
+            <div class="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-xl font-semibold text-gray-900">${t("selectColumnsToExport")}</h3>
+                    <button onclick="closeExportModal()" class="p-1 text-gray-400 hover:text-gray-600 rounded">
+                        <i class="ri-close-line text-lg"></i>
+                    </button>
+                </div>
+                <div id="columnSelectionContainer" class="space-y-2 max-h-60 overflow-y-auto mb-6 border border-gray-200 rounded-lg p-3 bg-gray-50">
+                    <!-- Column checkboxes will be loaded here -->
+                </div>
+                <div class="flex justify-end gap-3">
+                    <button onclick="closeExportModal()" class="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors">
+                        ${t("cancel")}
+                    </button>
+                    <button id="confirmExportBtn" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                        ${t("executeExport")}
+                    </button>
+                </div>
+            </div>
+        </div>
     `;
     
     const fetchUniqueActions = async () => {
@@ -532,4 +726,28 @@ async function loadSubmittedDbPage() {
     }
 
     initializePage();
+}
+
+// Helper function to apply status-based styling
+function getStatusClass(columnKey, value) {
+    if (!value) return 'text-gray-500';
+    
+    // Style based on column type and value
+    if (columnKey === 'アクション') {
+        return 'text-blue-700 font-medium';
+    }
+    
+    // Style based on specific values
+    const lowerValue = value.toString().toLowerCase();
+    if (lowerValue === 'ok' || lowerValue === '成功') {
+        return 'text-green-700 font-medium';
+    } else if (lowerValue === 'ng' || lowerValue === 'error' || lowerValue === 'エラー') {
+        return 'text-red-700 font-medium';
+    } else if (lowerValue.includes('success') || lowerValue.includes('完了')) {
+        return 'text-green-600';
+    } else if (lowerValue.includes('warning') || lowerValue.includes('注意')) {
+        return 'text-yellow-600';
+    }
+    
+    return 'text-gray-900';
 }

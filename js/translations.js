@@ -107,7 +107,13 @@ const translations = {
     itemsPerPage: "Items per page",
     items: "items",
     csvExport: "CSV Export",
-    pdfExport: "PDF Export"
+    pdfExport: "PDF Export",
+    dataList: "Data List",
+    noData: "No Data",
+    noDataDescription: "No logs match the current criteria.",
+    filters: "Filters",
+    selectColumnsToExport: "Select columns to export",
+    executeExport: "Execute Export"
   },
   
   ja: {
@@ -217,7 +223,13 @@ const translations = {
     itemsPerPage: "表示件数",
     items: "件",
     csvExport: "CSVエクスポート",
-    pdfExport: "PDFエクスポート"
+    pdfExport: "PDFエクスポート",
+    dataList: "データ一覧",
+    noData: "データがありません",
+    noDataDescription: "条件に一致するログはありません。",
+    filters: "フィルター",
+    selectColumnsToExport: "エクスポートする列を選択",
+    executeExport: "エクスポート実行"
   }
 };
 
