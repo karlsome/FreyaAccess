@@ -562,28 +562,57 @@ function openBlankMasterForm() {
     )
   );
 
-  const fieldInputs = headers.map(key => `
-    <div class="flex items-center gap-2">
-      <label class="font-medium w-32 shrink-0">${key}</label>
-      <input type="text" class="new-master-input p-1 border rounded w-full" data-key="${key}" placeholder="${key}" />
-    </div>
-  `).join("");
-
   container.innerHTML = `
-    <h3 class="text-xl font-bold mb-4">新規製品登録</h3>
+    <div class="p-6">
+      <!-- Header -->
+      <div class="flex items-center gap-3 mb-6 pb-4 border-b border-gray-200">
+        <div class="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
+          <i class="ri-add-line text-xl text-emerald-600"></i>
+        </div>
+        <div>
+          <h3 class="text-xl font-semibold text-gray-900">${t("newRegistration")}</h3>
+          <p class="text-sm text-gray-500">${t("registerNewProduct")}</p>
+        </div>
+      </div>
 
-    <div class="mb-4">
-      <h4 class="text-lg font-semibold">製品画像</h4>
-      <p id="previewText" class="text-gray-500 mb-2">No image selected.</p>
-      <img id="newMasterPreview" class="w-full max-h-64 object-contain rounded shadow hidden mb-2" />
-      <input type="file" id="newMasterImageInput" accept="image/*" />
-    </div>
+      <!-- Product Image Section -->
+      <div class="mb-6">
+        <h4 class="text-lg font-semibold text-gray-900 mb-3">${t("productImage")}</h4>
+        <div class="border border-gray-200 rounded-lg p-4 bg-gray-50">
+          <p id="previewText" class="text-gray-500 mb-2">${t("noImageSelected")}</p>
+          <img id="newMasterPreview" class="w-full max-h-64 object-contain rounded shadow hidden mb-2" />
+          <button onclick="document.getElementById('newMasterImageInput').click()" class="inline-flex items-center px-3 py-2 text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors">
+            <i class="ri-image-add-line mr-2"></i>
+            ${t("selectImage")}
+          </button>
+          <input type="file" id="newMasterImageInput" accept="image/*" class="hidden" />
+        </div>
+      </div>
 
-    <div class="space-y-2">${fieldInputs}</div>
+      <!-- Product Information -->
+      <div class="space-y-4 mb-6">
+        <h4 class="text-lg font-semibold text-gray-900">${t("productInformation")}</h4>
+        ${headers.map(key => `
+          <div class="grid grid-cols-3 gap-4 items-center py-3 border-b border-gray-100 last:border-b-0">
+            <label class="text-sm font-medium text-gray-700">${key}</label>
+            <div class="col-span-2">
+              <input type="text" class="new-master-input w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" data-key="${key}" placeholder="${t("enter")} ${key}" />
+            </div>
+          </div>
+        `).join("")}
+      </div>
 
-    <div class="mt-4 flex gap-2">
-      <button id="submitNewMasterBtn" class="bg-green-600 text-white px-4 py-2 rounded">登録</button>
-      <button onclick="closeMasterSidebar()" class="bg-gray-300 text-black px-4 py-2 rounded">キャンセル</button>
+      <!-- Action Buttons -->
+      <div class="flex gap-3 pt-4 border-t border-gray-200">
+        <button id="submitNewMasterBtn" class="inline-flex items-center px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors">
+          <i class="ri-check-line mr-2"></i>
+          ${t("register")}
+        </button>
+        <button onclick="closeMasterSidebar()" class="inline-flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
+          <i class="ri-close-line mr-2"></i>
+          ${t("cancel")}
+        </button>
+      </div>
     </div>
   `;
 
