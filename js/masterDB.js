@@ -41,49 +41,78 @@ function renderCustomerMasterTable(data) {
   const showDeleteButton = ["admin", "masterUser"].includes(currentUser.role);
 
   const tableHTML = `
-    <div class="mb-4 flex justify-between items-center">
-      <div class="flex gap-2">
-        <button id="showMainDataTab" class="px-4 py-2 bg-blue-500 text-white rounded text-sm" onclick="showMasterDBTab('data')">${t("dataList")}</button>
-        <button id="showMainHistoryTab" class="px-4 py-2 bg-gray-300 text-gray-700 rounded text-sm" onclick="showMasterDBTab('history')">${t("creationDeletionHistory")}</button>
-      </div>
-      ${showDeleteButton ? `
-        <button id="deleteSelectedBtn" onclick="deleteSelectedMasterRecords()" class="bg-red-600 text-white px-3 py-1 rounded text-sm opacity-50 cursor-not-allowed" disabled>
+    <!-- Tab Navigation -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 mb-6">
+      <div class="flex items-center justify-between p-6 border-b border-gray-200">
+        <div class="flex gap-3">
+          <button id="showMainDataTab" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm" onclick="showMasterDBTab('data')">
+            <i class="ri-table-line mr-2"></i>
+            ${t("dataList")}
+          </button>
+          <button id="showMainHistoryTab" class="inline-flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors" onclick="showMasterDBTab('history')">
+            <i class="ri-history-line mr-2"></i>
+            ${t("creationDeletionHistory")}
+          </button>
+        </div>
+        ${showDeleteButton ? `
+          <button id="deleteSelectedBtn" onclick="deleteSelectedMasterRecords()" class="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors shadow-sm opacity-50 cursor-not-allowed" disabled>
+            <i class="ri-delete-bin-line mr-2"></i>
             ${t("deleteSelected")}
-        </button>
-      ` : ""}
-    </div>
-
-    <div id="dataTabContent">
-      <div class="overflow-auto max-h-[70vh]">
-        <table class="w-full text-sm border">
-          <thead class="bg-gray-100 sticky top-0">
-            <tr>
-              ${showDeleteButton ? `<th class="px-4 py-2"><input type="checkbox" id="selectAllMasterRows" /></th>` : ""}
-              ${headers.map(h => `<th class="px-4 py-2">${h}</th>`).join("")}
-            </tr>
-          </thead>
-          <tbody>
-            ${data.map(row => {
-              const recordId = row._id?.$oid || row._id;
-              return `
-                <tr class="border-t hover:bg-gray-50 cursor-pointer">
-                  ${showDeleteButton ? `
-                    <td class="px-4 py-2">
-                      <input type="checkbox" class="rowCheckbox" data-id="${recordId}" onclick="event.stopPropagation()" />
-                    </td>
-                  ` : ""}
-                  ${headers.map(h => `<td class="px-4 py-2" onclick='showCustomerMasterSidebar(${JSON.stringify(row)})'>${row[h] || ""}</td>`).join("")}
-                </tr>
-              `;
-            }).join("")}
-          </tbody>
-        </table>
+          </button>
+        ` : ""}
       </div>
-    </div>
 
-    <div id="historyTabContent" class="hidden">
-      <div id="masterHistoryContainer" class="space-y-4">
-        <p class="text-gray-500">${t("loadingHistory")}</p>
+      <!-- Data Tab Content -->
+      <div id="dataTabContent" class="overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                ${showDeleteButton ? `
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
+                    <input type="checkbox" id="selectAllMasterRows" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                  </th>
+                ` : ""}
+                ${headers.map(h => `
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    ${h}
+                  </th>
+                `).join("")}
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+              ${data.map(row => {
+                const recordId = row._id?.$oid || row._id;
+                return `
+                  <tr class="hover:bg-gray-50 transition-colors cursor-pointer" onclick='showCustomerMasterSidebar(${JSON.stringify(row)})'>
+                    ${showDeleteButton ? `
+                      <td class="px-6 py-4 whitespace-nowrap text-center" onclick="event.stopPropagation()">
+                        <input type="checkbox" class="rowCheckbox rounded border-gray-300 text-blue-600 focus:ring-blue-500" data-id="${recordId}" />
+                      </td>
+                    ` : ""}
+                    ${headers.map(h => `
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        ${row[h] || ""}
+                      </td>
+                    `).join("")}
+                  </tr>
+                `;
+              }).join("")}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- History Tab Content -->
+      <div id="historyTabContent" class="hidden p-6">
+        <div id="masterHistoryContainer" class="space-y-4">
+          <div class="text-center py-8">
+            <div class="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+              <i class="ri-history-line text-2xl text-gray-400"></i>
+            </div>
+            <p class="text-gray-500">${t("loadingHistory")}</p>
+          </div>
+        </div>
       </div>
     </div>
   `;
@@ -132,11 +161,16 @@ function toggleDeleteButtonState() {
 function ensureMasterSidebarExists() {
   if (!document.getElementById("masterSidebar")) {
     const sidebarHTML = `
-      <div id="masterSidebar" class="fixed top-0 right-0 w-full md:w-[600px] h-full bg-white shadow-lg transform translate-x-full transition-transform duration-300 z-50 p-4 overflow-y-auto max-h-screen">
-        <button onclick="closeMasterSidebar()" class="mb-4 text-red-500 font-semibold w-full text-left md:w-auto">${t("close")}</button>
-        <div id="masterSidebarContent"></div>
+      <div id="masterSidebar" class="fixed top-0 right-0 w-full md:w-[600px] h-full bg-white shadow-xl transform translate-x-full transition-transform duration-300 z-50 flex flex-col">
+        <div class="flex items-center justify-between p-6 border-b border-gray-200 bg-gray-50">
+          <h3 class="text-xl font-semibold text-gray-900">製品詳細</h3>
+          <button onclick="closeMasterSidebar()" class="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors">
+            <i class="ri-close-line text-xl"></i>
+          </button>
+        </div>
+        <div id="masterSidebarContent" class="flex-1 overflow-y-auto"></div>
       </div>
-      <div id="masterSidebarOverlay" class="fixed inset-0 bg-black bg-opacity-30 hidden z-40" onclick="closeMasterSidebar()"></div>
+      <div id="masterSidebarOverlay" class="fixed inset-0 bg-black bg-opacity-50 hidden z-40" onclick="closeMasterSidebar()"></div>
     `;
     document.body.insertAdjacentHTML("beforeend", sidebarHTML);
   }
@@ -144,9 +178,49 @@ function ensureMasterSidebarExists() {
 
 function showInsertCSVForm() {
   const content = `
-    <h3 class="text-xl font-bold mb-4">${t("csvImportTitle")}</h3>
-    <input type="file" id="csvUploadInput" accept=".csv" class="mb-4" />
-    <button onclick="handleCSVUpload()" class="bg-blue-500 text-white px-4 py-2 rounded">${t("uploadCSV")}</button>
+    <div class="space-y-6">
+      <!-- Header Section -->
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <h1 class="text-3xl font-bold text-gray-900">${t("csvImportTitle")}</h1>
+          <p class="text-gray-600 mt-1">CSVファイルから一括でデータを登録</p>
+        </div>
+        <button onclick="loadCustomerMasterDB()" class="inline-flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
+          <i class="ri-arrow-left-line mr-2"></i>
+          戻る
+        </button>
+      </div>
+
+      <!-- CSV Upload Card -->
+      <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <div class="flex items-center gap-2 mb-4">
+          <i class="ri-file-upload-line text-lg text-blue-600"></i>
+          <h3 class="text-xl font-semibold text-gray-900">ファイルアップロード</h3>
+        </div>
+        
+        <div class="space-y-4">
+          <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-400 transition-colors">
+            <div class="mx-auto w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mb-4">
+              <i class="ri-file-excel-2-line text-2xl text-blue-600"></i>
+            </div>
+            <h4 class="text-lg font-medium text-gray-900 mb-2">CSVファイルを選択</h4>
+            <p class="text-gray-500 mb-4">ファイルをドラッグ&ドロップするか、クリックして選択してください</p>
+            <input type="file" id="csvUploadInput" accept=".csv" class="hidden" />
+            <button onclick="document.getElementById('csvUploadInput').click()" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+              <i class="ri-folder-open-line mr-2"></i>
+              ファイル選択
+            </button>
+          </div>
+          
+          <div class="flex justify-center">
+            <button onclick="handleCSVUpload()" class="inline-flex items-center px-6 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors shadow-sm">
+              <i class="ri-upload-line mr-2"></i>
+              ${t("uploadCSV")}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   `;
   document.getElementById("mainContent").innerHTML = content;
 }
@@ -227,52 +301,87 @@ function showCustomerMasterSidebar(data) {
     : `<p class="text-gray-500 mb-2">${t("noImageUploaded")}</p>`;
 
   container.innerHTML = `
-    <h3 class="text-xl font-bold mb-4">${data["品番"] ?? t("details")}</h3>
-    
-    <div class="mb-4 flex gap-2">
-      <button id="showSidebarDetailTab" class="px-3 py-1 text-sm bg-blue-500 text-white rounded" onclick="showSidebarTab('detail')">${t("details")}</button>
-      <button id="showSidebarHistoryTab" class="px-3 py-1 text-sm bg-gray-300 text-gray-700 rounded" onclick="showSidebarTab('history')">${t("changeHistory")}</button>
-    </div>
+    <div class="p-6">
+      <!-- Tab Navigation -->
+      <div class="flex gap-2 mb-6">
+        <button id="showSidebarDetailTab" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors" onclick="showSidebarTab('detail')">
+          <i class="ri-information-line mr-2"></i>
+          ${t("details")}
+        </button>
+        <button id="showSidebarHistoryTab" class="inline-flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors" onclick="showSidebarTab('history')">
+          <i class="ri-history-line mr-2"></i>
+          ${t("changeHistory")}
+        </button>
+      </div>
 
-    <div id="sidebarDetailContent">
-      <div class="mb-4">
-        <h4 class="text-lg font-semibold">${t("productImage")}</h4>
-        ${imageHTML}
+      <!-- Detail Content -->
+      <div id="sidebarDetailContent">
+        <!-- Product Image Section -->
+        <div class="mb-6">
+          <h4 class="text-lg font-semibold text-gray-900 mb-3">${t("productImage")}</h4>
+          <div class="border border-gray-200 rounded-lg p-4 bg-gray-50">
+            ${imageHTML}
+            ${canEdit ? `
+              <div id="imageActionWrapper" class="hidden mt-3">
+                <button onclick="document.getElementById('masterImageUploadInput').click()" class="inline-flex items-center px-3 py-2 text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors">
+                  <i class="ri-image-add-line mr-2"></i>
+                  ${data.imageURL ? t("updateImage") : t("uploadImage")}
+                </button>
+                <input type="file" id="masterImageUploadInput" accept="image/*" class="hidden" />
+              </div>
+            ` : ''}
+          </div>
+        </div>
+
+        <!-- Product Details -->
+        <div class="space-y-4">
+          <h4 class="text-lg font-semibold text-gray-900">製品情報</h4>
+          ${fields.map(f => `
+            <div class="grid grid-cols-3 gap-4 items-center py-3 border-b border-gray-100 last:border-b-0">
+              <label class="text-sm font-medium text-gray-700">${f}</label>
+              <div class="col-span-2">
+                <input type="text" class="editable-master w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${canEdit ? 'bg-white' : 'bg-gray-50'}" data-key="${f}" value="${data[f] ?? ""}" disabled />
+              </div>
+            </div>
+          `).join("")}
+        </div>
+
+        <!-- Action Buttons -->
         ${canEdit ? `
-          <div id="imageActionWrapper" class="hidden mt-2">
-            <button onclick="document.getElementById('masterImageUploadInput').click()" class="text-blue-600 underline text-sm">
-              ${data.imageURL ? t("updateImage") : t("uploadImage")}
+          <div class="mt-6 flex gap-3 pt-4 border-t border-gray-200">
+            <button id="editMasterBtn" class="inline-flex items-center px-4 py-2 text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors">
+              <i class="ri-edit-line mr-2"></i>
+              ${t("edit")}
             </button>
-            <input type="file" id="masterImageUploadInput" accept="image/*" class="hidden" />
+            <button id="saveMasterBtn" class="hidden inline-flex items-center px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors">
+              <i class="ri-check-line mr-2"></i>
+              ${t("ok")}
+            </button>
+            <button id="cancelMasterBtn" class="hidden inline-flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
+              <i class="ri-close-line mr-2"></i>
+              ${t("cancel")}
+            </button>
           </div>
-        ` : ''}
+        ` : `
+          <div class="mt-6 pt-4 border-t border-gray-200">
+            <div class="flex items-center text-sm text-gray-500">
+              <i class="ri-lock-line mr-2"></i>
+              ${t("readOnly")}
+            </div>
+          </div>
+        `}
       </div>
 
-      <div class="space-y-2">
-        ${fields.map(f => `
-          <div class="flex items-center gap-2">
-            <label class="font-medium w-32 shrink-0">${f}</label>
-            <input type="text" class="editable-master p-1 border rounded w-full ${canEdit ? 'bg-gray-100' : 'bg-gray-200'}" data-key="${f}" value="${data[f] ?? ""}" disabled />
+      <!-- History Content -->
+      <div id="sidebarHistoryContent" class="hidden">
+        <div id="changeHistoryContainer" class="space-y-4">
+          <div class="text-center py-8">
+            <div class="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+              <i class="ri-history-line text-2xl text-gray-400"></i>
+            </div>
+            <p class="text-gray-500">${t("loadingHistory")}</p>
           </div>
-        `).join("")}
-      </div>
-
-      ${canEdit ? `
-        <div class="mt-4 flex gap-2">
-          <button id="editMasterBtn" class="text-blue-600 underline text-sm">${t("edit")}</button>
-          <button id="saveMasterBtn" class="hidden bg-green-500 text-white px-3 py-1 rounded text-sm">${t("ok")}</button>
-          <button id="cancelMasterBtn" class="hidden bg-gray-300 text-black px-3 py-1 rounded text-sm">${t("cancel")}</button>
         </div>
-      ` : `
-        <div class="mt-4">
-          <p class="text-sm text-gray-500 italic">${t("readOnly")}</p>
-        </div>
-      `}
-    </div>
-
-    <div id="sidebarHistoryContent" class="hidden">
-      <div id="changeHistoryContainer" class="space-y-3">
-        <p class="text-gray-500">${t("loadingHistory")}</p>
       </div>
     </div>
   `;

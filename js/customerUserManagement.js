@@ -28,24 +28,51 @@ function showCreateUserForm() {
   const container = document.getElementById("userTableContainer");
 
   const formHTML = `
-    <div class="bg-white border p-4 rounded shadow mb-4 max-w-xl">
-      <h3 class="text-lg font-semibold mb-2">${t("createNewUser")}</h3>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <input type="text" id="newFirstName" placeholder="${t("firstName")}" class="border p-2 rounded w-full" />
-        <input type="text" id="newLastName" placeholder="${t("lastName")}" class="border p-2 rounded w-full" />
-        <input type="email" id="newEmail" placeholder="${t("email")}" class="border p-2 rounded w-full" />
-        <input type="text" id="newUsername" placeholder="${t("username")}" class="border p-2 rounded w-full" />
-        <input type="password" id="newPassword" placeholder="${t("password")}" class="border p-2 rounded w-full" />
-        <select id="newRole" class="border p-2 rounded w-full">
-          <option value="">Select Role</option>
-          <option value="admin">admin</option>
-          <option value="職長">職長</option>
-          <option value="member">member</option>
-        </select>
+    <div class="bg-white border border-gray-200 rounded-xl shadow-sm p-6 mb-6">
+      <div class="flex items-center gap-2 mb-4">
+        <i class="ri-user-add-line text-lg text-blue-600"></i>
+        <h3 class="text-xl font-semibold text-gray-900">${t("createNewUser")}</h3>
       </div>
-      <div class="mt-4 flex gap-2">
-        <button class="bg-green-600 text-white px-4 py-2 rounded" onclick="submitNewUser()">${t("save")}</button>
-        <button class="bg-gray-400 text-white px-4 py-2 rounded" onclick="loadCustomerUsers()">${t("cancel")}</button>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <div class="space-y-1">
+          <label class="block text-sm font-medium text-gray-700">${t("firstName")}</label>
+          <input type="text" id="newFirstName" placeholder="${t("firstName")}" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" />
+        </div>
+        <div class="space-y-1">
+          <label class="block text-sm font-medium text-gray-700">${t("lastName")}</label>
+          <input type="text" id="newLastName" placeholder="${t("lastName")}" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" />
+        </div>
+        <div class="space-y-1">
+          <label class="block text-sm font-medium text-gray-700">${t("email")}</label>
+          <input type="email" id="newEmail" placeholder="${t("email")}" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" />
+        </div>
+        <div class="space-y-1">
+          <label class="block text-sm font-medium text-gray-700">${t("username")}</label>
+          <input type="text" id="newUsername" placeholder="${t("username")}" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" />
+        </div>
+        <div class="space-y-1">
+          <label class="block text-sm font-medium text-gray-700">${t("password")}</label>
+          <input type="password" id="newPassword" placeholder="${t("password")}" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" />
+        </div>
+        <div class="space-y-1">
+          <label class="block text-sm font-medium text-gray-700">役割</label>
+          <select id="newRole" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors">
+            <option value="">Select Role</option>
+            <option value="admin">admin</option>
+            <option value="職長">職長</option>
+            <option value="member">member</option>
+          </select>
+        </div>
+      </div>
+      <div class="flex gap-3">
+        <button class="inline-flex items-center px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors" onclick="submitNewUser()">
+          <i class="ri-check-line mr-2"></i>
+          ${t("save")}
+        </button>
+        <button class="inline-flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors" onclick="loadCustomerUsers()">
+          <i class="ri-close-line mr-2"></i>
+          ${t("cancel")}
+        </button>
       </div>
     </div>
   `;

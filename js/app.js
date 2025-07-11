@@ -74,19 +74,63 @@ function loadPage(page) {
   switch (page) {
     case "dashboard":
         mainContent.innerHTML = `
-            <h2 class="text-2xl font-semibold mb-4">${t("deviceOverview")}</h2>
-            <div id="deviceOverviewContainer">${t("loadingDevices")}</div>
+          <div class="space-y-6">
+            <!-- Header Section -->
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div>
+                <h1 class="text-3xl font-bold text-gray-900">${t("deviceOverview")}</h1>
+                <p class="text-gray-600 mt-1">システム全体の状況とデバイス管理</p>
+              </div>
+            </div>
+            
+            <!-- Device Overview Card -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <div class="flex items-center gap-2 mb-4">
+                <i class="ri-dashboard-line text-lg text-gray-600"></i>
+                <h3 class="text-lg font-semibold text-gray-900">デバイス状況</h3>
+              </div>
+              <div id="deviceOverviewContainer" class="text-center py-8">
+                <div class="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                  <i class="ri-device-line text-2xl text-gray-400"></i>
+                </div>
+                <p class="text-gray-500">${t("loadingDevices")}</p>
+              </div>
+            </div>
+          </div>
         `;
         loadDeviceOverview();
         break;
 
     case "userManagement":
         mainContent.innerHTML = `
-            <div class="flex items-center justify-between mb-4">
-            <h2 class="text-2xl font-semibold">${t("userManagement")}</h2>
-            <button onclick="showCreateUserForm()" class="bg-green-600 text-white px-4 py-1 rounded text-sm">${t("createNewUser")}</button>
+          <div class="space-y-6">
+            <!-- Header Section -->
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div>
+                <h1 class="text-3xl font-bold text-gray-900">${t("userManagement")}</h1>
+                <p class="text-gray-600 mt-1">ユーザーアカウントの作成と管理</p>
+              </div>
+              <button onclick="showCreateUserForm()" class="inline-flex items-center px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors shadow-sm">
+                <i class="ri-user-add-line mr-2"></i>
+                ${t("createNewUser")}
+              </button>
             </div>
-            <div id="userTableContainer">${t("loadingUsers")}</div>
+            
+            <!-- User Table Card -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200">
+              <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
+                <h3 class="text-lg font-semibold text-gray-900">ユーザー一覧</h3>
+              </div>
+              <div id="userTableContainer" class="p-6">
+                <div class="text-center py-8">
+                  <div class="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                    <i class="ri-user-line text-2xl text-gray-400"></i>
+                  </div>
+                  <p class="text-gray-500">${t("loadingUsers")}</p>
+                </div>
+              </div>
+            </div>
+          </div>
         `;
         loadCustomerUsers();
         break;
@@ -97,17 +141,40 @@ function loadPage(page) {
 
     case "masterDB":
       mainContent.innerHTML = `
-        <div class="flex items-center justify-between mb-4">
-          <h2 class="text-2xl font-semibold">${t("productMasterList")}</h2>
-          <div class="flex gap-2">
-            <button onclick="showInsertCSVForm()" class="bg-blue-600 text-white px-4 py-1 rounded text-sm">${t("csvBulkRegistration")}</button>
-            <button onclick="openBlankMasterForm()" class="bg-green-600 text-white px-4 py-1 rounded text-sm">${t("newRegistration")}</button>
+        <div class="space-y-6">
+          <!-- Header Section -->
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <h1 class="text-3xl font-bold text-gray-900">${t("productMasterList")}</h1>
+              <p class="text-gray-600 mt-1">製品マスターデータの管理と編集</p>
+            </div>
+            <div class="flex gap-3">
+              <button onclick="showInsertCSVForm()" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm">
+                <i class="ri-file-upload-line mr-2"></i>
+                ${t("csvBulkRegistration")}
+              </button>
+              <button onclick="openBlankMasterForm()" class="inline-flex items-center px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors shadow-sm">
+                <i class="ri-add-line mr-2"></i>
+                ${t("newRegistration")}
+              </button>
+            </div>
           </div>
+
+          <!-- Search Section -->
+          <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center gap-2 mb-4">
+              <i class="ri-search-line text-lg text-gray-600"></i>
+              <h3 class="text-lg font-semibold text-gray-900">検索</h3>
+            </div>
+            <div class="relative">
+              <input type="text" id="masterSearchInput" class="w-full px-4 py-3 pl-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" placeholder="${t("searchPlaceholder")}" />
+              <i class="ri-search-line absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+            </div>
+          </div>
+
+          <!-- Data Table -->
+          <div id="masterTableContainer">${t("loading")}</div>
         </div>
-        <div class="mb-4">
-          <input type="text" id="masterSearchInput" class="w-full p-2 border rounded" placeholder="${t("searchPlaceholder")}" />
-        </div>
-        <div id="masterTableContainer">${t("loading")}</div>
       `;
       loadCustomerMasterDB();
 

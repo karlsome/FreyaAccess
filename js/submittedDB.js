@@ -149,8 +149,8 @@ function renderTable(data) {
     data.forEach((row, index) => {
         const rowNumberOnPage = index + 1; 
         const isChecked = selectedRows.has(row._id); 
-        bodyHtml += `<tr class="hover:bg-gray-50 transition-colors">`;
-        bodyHtml += `<td class="px-6 py-4 whitespace-nowrap text-center">
+        bodyHtml += `<tr class="hover:bg-gray-50 transition-colors cursor-pointer" onclick='showDetailsPanel(${JSON.stringify(row)})'>`;
+        bodyHtml += `<td class="px-6 py-4 whitespace-nowrap text-center" onclick="event.stopPropagation()">
             <input type="checkbox" class="row-checkbox rounded border-gray-300 text-blue-600 focus:ring-blue-500" data-id="${row._id}" onchange="toggleRowSelection(this)" ${isChecked ? 'checked' : ''}>
         </td>`;
         bodyHtml += `<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-medium">${rowNumberOnPage}</td>`;
@@ -158,7 +158,7 @@ function renderTable(data) {
             const cellValue = row[header.key] || '';
             const cellClass = getStatusClass(header.key, cellValue);
             bodyHtml += `<td class="px-6 py-4 whitespace-nowrap">
-                <div class="text-sm cursor-pointer hover:text-blue-600 transition-colors ${cellClass}" onclick='showDetailsPanel(${JSON.stringify(row)})'>
+                <div class="text-sm ${cellClass}">
                     ${cellValue}
                 </div>
             </td>`;
