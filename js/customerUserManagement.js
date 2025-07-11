@@ -28,24 +28,51 @@ function showCreateUserForm() {
   const container = document.getElementById("userTableContainer");
 
   const formHTML = `
-    <div class="bg-white border p-4 rounded shadow mb-4 max-w-xl">
-      <h3 class="text-lg font-semibold mb-2">新規ユーザー作成</h3>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <input type="text" id="newFirstName" placeholder="First Name" class="border p-2 rounded w-full" />
-        <input type="text" id="newLastName" placeholder="Last Name" class="border p-2 rounded w-full" />
-        <input type="email" id="newEmail" placeholder="Email" class="border p-2 rounded w-full" />
-        <input type="text" id="newUsername" placeholder="Username" class="border p-2 rounded w-full" />
-        <input type="password" id="newPassword" placeholder="Password" class="border p-2 rounded w-full" />
-        <select id="newRole" class="border p-2 rounded w-full">
-          <option value="">Select Role</option>
-          <option value="admin">admin</option>
-          <option value="職長">職長</option>
-          <option value="member">member</option>
-        </select>
+    <div class="bg-white border border-gray-200 rounded-xl shadow-sm p-6 mb-6">
+      <div class="flex items-center gap-2 mb-4">
+        <i class="ri-user-add-line text-lg text-blue-600"></i>
+        <h3 class="text-xl font-semibold text-gray-900">${t("createNewUser")}</h3>
       </div>
-      <div class="mt-4 flex gap-2">
-        <button class="bg-green-600 text-white px-4 py-2 rounded" onclick="submitNewUser()">登録</button>
-        <button class="bg-gray-400 text-white px-4 py-2 rounded" onclick="loadCustomerUsers()">キャンセル</button>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <div class="space-y-1">
+          <label class="block text-sm font-medium text-gray-700">${t("firstName")}</label>
+          <input type="text" id="newFirstName" placeholder="${t("firstName")}" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" />
+        </div>
+        <div class="space-y-1">
+          <label class="block text-sm font-medium text-gray-700">${t("lastName")}</label>
+          <input type="text" id="newLastName" placeholder="${t("lastName")}" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" />
+        </div>
+        <div class="space-y-1">
+          <label class="block text-sm font-medium text-gray-700">${t("email")}</label>
+          <input type="email" id="newEmail" placeholder="${t("email")}" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" />
+        </div>
+        <div class="space-y-1">
+          <label class="block text-sm font-medium text-gray-700">${t("username")}</label>
+          <input type="text" id="newUsername" placeholder="${t("username")}" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" />
+        </div>
+        <div class="space-y-1">
+          <label class="block text-sm font-medium text-gray-700">${t("password")}</label>
+          <input type="password" id="newPassword" placeholder="${t("password")}" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" />
+        </div>
+        <div class="space-y-1">
+          <label class="block text-sm font-medium text-gray-700">役割</label>
+          <select id="newRole" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors">
+            <option value="">Select Role</option>
+            <option value="admin">admin</option>
+            <option value="職長">職長</option>
+            <option value="member">member</option>
+          </select>
+        </div>
+      </div>
+      <div class="flex gap-3">
+        <button class="inline-flex items-center px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors" onclick="submitNewUser()">
+          <i class="ri-check-line mr-2"></i>
+          ${t("save")}
+        </button>
+        <button class="inline-flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors" onclick="loadCustomerUsers()">
+          <i class="ri-close-line mr-2"></i>
+          ${t("cancel")}
+        </button>
       </div>
     </div>
   `;
@@ -99,11 +126,11 @@ async function saveUser(userId) {
     const result = await res.json();
     if (!res.ok || !result.modifiedCount) throw new Error("更新失敗");
 
-    alert("更新成功");
+    alert(t("updateSuccess"));
     loadCustomerUsers();
   } catch (err) {
     console.error("更新エラー:", err);
-    alert("ユーザー更新失敗");
+    alert(t("updateFailed"));
   }
 }
 
@@ -126,11 +153,11 @@ async function deleteUser(userId) {
     const result = await res.json();
     if (!res.ok || !result.deletedCount) throw new Error("削除失敗");
 
-    alert("削除完了しました");
+    alert(t("deleteSuccess"));
     loadCustomerUsers();
   } catch (err) {
     console.error("削除エラー:", err);
-    alert("削除に失敗しました");
+    alert(t("deleteFailed"));
   }
 }
 
@@ -140,7 +167,7 @@ function renderUserTable(users) {
   const isAdmin = ["admin", "masterUser"].includes(currentUser.role);
 
   if (!isAdmin) {
-    document.getElementById("userTableContainer").innerHTML = `<p>アクセス権限がありません。</p>`;
+    document.getElementById("userTableContainer").innerHTML = `<p>${t("noAccess")}</p>`;
     return;
   }
 
@@ -200,7 +227,7 @@ async function submitNewUser() {
   };
 
   if (!data.firstName || !data.lastName || !data.email || !data.username || !data.password || !data.role) {
-    return alert("すべてのフィールドを入力してください");
+    return alert(t("fillAllFields"));
   }
 
   try {
@@ -230,11 +257,11 @@ async function submitNewUser() {
       throw new Error(errorMessage);
     }
 
-    alert("ユーザー作成成功");
+    alert(t("userCreateSuccess"));
     loadCustomerUsers();
   } catch (err) {
     console.error("Create error:", err);
-    alert("作成エラー: " + err.message);
+    alert(t("createError") + ": " + err.message);
   }
 }
 
@@ -243,13 +270,13 @@ async function resetUserPassword(userId) {
   if (!newPassword) return;
   
   if (newPassword.length < 6) {
-    alert("パスワードは6文字以上である必要があります");
+    alert(t("passwordMinLength"));
     return;
   }
 
   const confirmPassword = prompt("パスワードを再入力して確認してください:");
   if (newPassword !== confirmPassword) {
-    alert("パスワードが一致しません");
+    alert(t("passwordMismatch"));
     return;
   }
 
@@ -273,7 +300,7 @@ async function resetUserPassword(userId) {
     const result = await res.json();
     if (!res.ok) throw new Error(result.error || "パスワードリセットに失敗しました");
 
-    alert("パスワードリセット成功");
+    alert(t("passwordResetSuccess"));
   } catch (err) {
     console.error("パスワードリセットエラー:", err);
     alert("パスワードリセット失敗: " + err.message);

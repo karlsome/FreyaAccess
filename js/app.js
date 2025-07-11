@@ -46,16 +46,45 @@ function createNavItem(page, label, iconClass) {
   return li;
 }
 
+// Load HTML template from external file
+async function loadTemplate(templateName) {
+  try {
+    const response = await fetch(`pages/${templateName}.html`);
+    if (!response.ok) {
+      throw new Error(`Failed to load template: ${templateName}`);
+    }
+    return await response.text();
+  } catch (error) {
+    console.error(`Error loading template ${templateName}:`, error);
+    return `<div class="text-red-500">Failed to load page template: ${templateName}</div>`;
+  }
+}
+
+// Update all translatable elements in the DOM
+function updateTranslatableElements() {
+  // Update elements with data-translate attribute
+  document.querySelectorAll('[data-translate]').forEach(element => {
+    const key = element.getAttribute('data-translate');
+    element.textContent = t(key);
+  });
+  
+  // Update placeholders with data-translate-placeholder attribute
+  document.querySelectorAll('[data-translate-placeholder]').forEach(element => {
+    const key = element.getAttribute('data-translate-placeholder');
+    element.placeholder = t(key);
+  });
+}
+
 // Render sidebar based on role
 function renderSidebarNavigation() {
   const navList = document.getElementById("dynamicNav");
   navList.innerHTML = "";
 
   const navItems = {
-    dashboard: ["Dashboard", "ri-dashboard-line"],
-    masterDB: ["MasterDB", "ri-database-2-line"],
-    submittedDB: ["SubmittedDB", "ri-file-upload-line"],
-    userManagement: ["Users", "ri-user-settings-line"]
+    dashboard: [t("dashboard"), "ri-dashboard-line"],
+    masterDB: [t("masterDB"), "ri-database-2-line"],
+    submittedDB: [t("submittedDB"), "ri-file-upload-line"],
+    userManagement: [t("userManagement"), "ri-user-settings-line"]
   };
 
   const allowedPages = roleAccess[role] || [];
@@ -67,79 +96,67 @@ function renderSidebarNavigation() {
   setupNavigation();
 }
 
-function loadPage(page) {
+async function loadPage(page) {
   const mainContent = document.getElementById("mainContent");
   handleNavClick(); // Close sidebar on mobile nav click
 
-  switch (page) {
-    case "dashboard":
-        mainContent.innerHTML = `
-            <h2 class="text-2xl font-semibold mb-4">Device Overview</h2>
-            <div id="deviceOverviewContainer">Loading devices...</div>
-        `;
+  try {
+    let template;
+    
+    switch (page) {
+      case "dashboard":
+        template = await loadTemplate('dashboard');
+        mainContent.innerHTML = template;
+        updateTranslatableElements();
         loadDeviceOverview();
         break;
 
-    case "userManagement":
-        mainContent.innerHTML = `
-            <div class="flex items-center justify-between mb-4">
-            <h2 class="text-2xl font-semibold">ユーザー管理</h2>
-            <button onclick="showCreateUserForm()" class="bg-green-600 text-white px-4 py-1 rounded text-sm">新規ユーザー作成</button>
-            </div>
-            <div id="userTableContainer">読み込み中...</div>
-        `;
+      case "userManagement":
+        template = await loadTemplate('userManagement');
+        mainContent.innerHTML = template;
+        updateTranslatableElements();
         loadCustomerUsers();
         break;
 
-    case "submittedDB":
-      loadSubmittedDbPage(); 
-      break;
+      case "masterDB":
+        template = await loadTemplate('masterDB');
+        mainContent.innerHTML = template;
+        updateTranslatableElements();
+        loadCustomerMasterDB();
 
-    case "masterDB":
-      mainContent.innerHTML = `
-        <div class="flex items-center justify-between mb-4">
-          <h2 class="text-2xl font-semibold">製品マスタ一覧</h2>
-          <div class="flex gap-2">
-            <button onclick="showInsertCSVForm()" class="bg-blue-600 text-white px-4 py-1 rounded text-sm">CSV一括登録</button>
-            <button onclick="openBlankMasterForm()" class="bg-green-600 text-white px-4 py-1 rounded text-sm">新規登録</button>
-          </div>
-        </div>
-        <div class="mb-4">
-          <input type="text" id="masterSearchInput" class="w-full p-2 border rounded" placeholder="品番、モデル、背番号などで検索..." />
-        </div>
-        <div id="masterTableContainer">Loading...</div>
-      `;
-      loadCustomerMasterDB();
+        // Setup search
+        setTimeout(() => {
+          const searchInput = document.getElementById("masterSearchInput");
+          if (searchInput) {
+            searchInput.addEventListener("input", () => {
+              const keyword = searchInput.value.trim();
+              if (!keyword) {
+                renderCustomerMasterTable(customerMasterData);
+                return;
+              }
+              const filtered = customerMasterData.filter(row =>
+                Object.values(row).some(val => val?.toString().toLowerCase().includes(keyword.toLowerCase()))
+              );
+              renderCustomerMasterTable(filtered);
+            });
+          }
+        }, 100);
+        break;
 
-      // Setup search
-      setTimeout(() => {
-        const searchInput = document.getElementById("masterSearchInput");
-        if (searchInput) {
-          searchInput.addEventListener("input", () => {
-            const keyword = searchInput.value.trim();
-            if (!keyword) {
-              renderCustomerMasterTable(customerMasterData);
-              return;
-            }
-            const filtered = customerMasterData.filter(row =>
-              Object.values(row).some(val => val?.toString().toLowerCase().includes(keyword.toLowerCase()))
-            );
-            renderCustomerMasterTable(filtered);
-          });
-        }
-      }, 100);
-      break;
+      case "submittedDB":
+        template = await loadTemplate('submittedDB');
+        mainContent.innerHTML = template;
+        updateTranslatableElements();
+        loadSubmittedDbPage();
+        break;
 
-    case "submittedDB":
-      mainContent.innerHTML = `
-        <h2 class="text-2xl font-semibold mb-4">送信済データ一覧</h2>
-        <p>現在準備中です。</p>
-        <div class="text-sm text-gray-500">※ ご希望があればこのセクションも構築します。</div>
-      `;
-      break;
-
-    default:
-      mainContent.innerHTML = `<p>ページが見つかりません: ${page}</p>`;
+      default:
+        mainContent.innerHTML = `<div class="text-red-500">${t("pageNotFound")}: ${page}</div>`;
+        break;
+    }
+  } catch (error) {
+    console.error(`Error loading page ${page}:`, error);
+    mainContent.innerHTML = `<div class="text-red-500">Error loading page: ${page}</div>`;
   }
 }
 

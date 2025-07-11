@@ -17,7 +17,7 @@ async function loadCustomerMasterDB() {
     renderCustomerMasterTable(customerMasterData);
   } catch (err) {
     console.error("Error loading masterDB:", err);
-    mainContent.innerHTML = `<p class='text-red-500'>Failed to load masterDB.</p>`;
+    mainContent.innerHTML = `<p class='text-red-500'>${t("failedToLoadMasterDB")}</p>`;
   }
 }
 
@@ -25,7 +25,7 @@ function renderCustomerMasterTable(data) {
   const tableContainer = document.getElementById("masterTableContainer");
 
   if (!data.length) {
-    tableContainer.innerHTML = `<p>No data found.</p>`;
+    tableContainer.innerHTML = `<p>${t("noDataFound")}</p>`;
     return;
   }
 
@@ -41,54 +41,146 @@ function renderCustomerMasterTable(data) {
   const showDeleteButton = ["admin", "masterUser"].includes(currentUser.role);
 
   const tableHTML = `
-    <div class="mb-4 flex justify-between items-center">
-      <div class="flex gap-2">
-        <button id="showMainDataTab" class="px-4 py-2 bg-blue-500 text-white rounded text-sm" onclick="showMasterDBTab('data')">データ一覧</button>
-        <button id="showMainHistoryTab" class="px-4 py-2 bg-gray-300 text-gray-700 rounded text-sm" onclick="showMasterDBTab('history')">作成・削除履歴</button>
+    <!-- Tab Navigation -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 mb-6">
+      <div class="flex items-center justify-between p-6 border-b border-gray-200">
+        <div class="flex gap-3">
+          <button id="showMainDataTab" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm" onclick="showMasterDBTab('data')">
+            <i class="ri-table-line mr-2"></i>
+            ${t("dataList")}
+          </button>
+          <button id="showMainHistoryTab" class="inline-flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors" onclick="showMasterDBTab('history')">
+            <i class="ri-history-line mr-2"></i>
+            ${t("creationDeletionHistory")}
+          </button>
+        </div>
+        ${showDeleteButton ? `
+          <button id="deleteSelectedBtn" onclick="deleteSelectedMasterRecords()" class="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors shadow-sm opacity-50 cursor-not-allowed" disabled>
+            <i class="ri-delete-bin-line mr-2"></i>
+            ${t("deleteSelected")}
+          </button>
+        ` : ""}
       </div>
-      ${showDeleteButton ? `
-        <button id="deleteSelectedBtn" onclick="deleteSelectedMasterRecords()" class="bg-red-600 text-white px-3 py-1 rounded text-sm opacity-50 cursor-not-allowed" disabled>
-            選択削除 (Delete Selected)
-        </button>
-      ` : ""}
-    </div>
 
-    <div id="dataTabContent">
-      <div class="overflow-auto max-h-[70vh]">
-        <table class="w-full text-sm border">
-          <thead class="bg-gray-100 sticky top-0">
-            <tr>
-              ${showDeleteButton ? `<th class="px-4 py-2"><input type="checkbox" id="selectAllMasterRows" /></th>` : ""}
-              ${headers.map(h => `<th class="px-4 py-2">${h}</th>`).join("")}
-            </tr>
-          </thead>
-          <tbody>
-            ${data.map(row => {
-              const recordId = row._id?.$oid || row._id;
-              return `
-                <tr class="border-t hover:bg-gray-50 cursor-pointer">
-                  ${showDeleteButton ? `
-                    <td class="px-4 py-2">
-                      <input type="checkbox" class="rowCheckbox" data-id="${recordId}" onclick="event.stopPropagation()" />
-                    </td>
-                  ` : ""}
-                  ${headers.map(h => `<td class="px-4 py-2" onclick='showCustomerMasterSidebar(${JSON.stringify(row)})'>${row[h] || ""}</td>`).join("")}
-                </tr>
-              `;
-            }).join("")}
-          </tbody>
-        </table>
+      <!-- Data Tab Content -->
+      <div id="dataTabContent" class="overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                ${showDeleteButton ? `
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
+                    <input type="checkbox" id="selectAllMasterRows" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                  </th>
+                ` : ""}
+                ${headers.map(h => `
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    ${h}
+                  </th>
+                `).join("")}
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+              ${data.map(row => {
+                const recordId = row._id?.$oid || row._id;
+                return `
+                  <tr class="hover:bg-gray-50 transition-colors cursor-pointer" onclick='showCustomerMasterSidebar(${JSON.stringify(row)})'>
+                    ${showDeleteButton ? `
+                      <td class="px-6 py-4 whitespace-nowrap text-center" onclick="event.stopPropagation()">
+                        <input type="checkbox" class="rowCheckbox rounded border-gray-300 text-blue-600 focus:ring-blue-500" data-id="${recordId}" />
+                      </td>
+                    ` : ""}
+                    ${headers.map(h => `
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        ${row[h] || ""}
+                      </td>
+                    `).join("")}
+                  </tr>
+                `;
+              }).join("")}
+            </tbody>
+          </table>
+        </div>
       </div>
-    </div>
 
-    <div id="historyTabContent" class="hidden">
-      <div id="masterHistoryContainer" class="space-y-4">
-        <p class="text-gray-500">履歴を読み込み中...</p>
+      <!-- History Tab Content -->
+      <div id="historyTabContent" class="hidden p-6">
+        <!-- Search and Filter Controls -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-4">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="space-y-1">
+              <label class="block text-sm font-medium text-gray-700">${t("searchHistory")}</label>
+              <input type="text" id="historySearchInput" placeholder="${t("searchHistory")}" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" />
+            </div>
+            <div class="space-y-1">
+              <label class="block text-sm font-medium text-gray-700">${t("filterByAction")}</label>
+              <select id="historyActionFilter" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
+                <option value="">${t("allActions")}</option>
+                <option value="creation">${t("creation")}</option>
+                <option value="deletion">${t("deletion")}</option>
+              </select>
+            </div>
+            <div class="space-y-1">
+              <label class="block text-sm font-medium text-gray-700">${t("filterByUser")}</label>
+              <select id="historyUserFilter" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
+                <option value="">${t("allUsers")}</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pagination Info and Controls -->
+        <div class="flex justify-between items-center mb-4">
+          <div class="text-sm text-gray-600">
+            <span id="historyResultsInfo">${t("loadingHistory")}</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <label class="text-sm text-gray-600">${t("itemsPerPage")}:</label>
+            <select id="historyItemsPerPage" class="px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+              <option value="10">10</option>
+              <option value="25" selected>25</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- History List Container -->
+        <div id="masterHistoryContainer" class="space-y-4">
+          <div class="text-center py-8">
+            <div class="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+              <i class="ri-history-line text-2xl text-gray-400"></i>
+            </div>
+            <p class="text-gray-500">${t("loadingHistory")}</p>
+          </div>
+        </div>
+
+        <!-- Pagination Controls -->
+        <div id="historyPaginationContainer" class="mt-6 flex justify-center">
+          <!-- Pagination will be inserted here -->
+        </div>
       </div>
     </div>
   `;
 
   tableContainer.innerHTML = tableHTML;
+
+  // Ensure both search inputs are in correct state (enabled for data tab by default)
+  const topSearchInput = document.getElementById('searchInput');
+  const masterSearchInput = document.getElementById('masterSearchInput');
+  
+  if (topSearchInput) {
+    topSearchInput.disabled = false;
+    topSearchInput.classList.remove('bg-gray-100', 'text-gray-400', 'cursor-not-allowed');
+    topSearchInput.classList.add('bg-white', 'text-gray-900');
+    topSearchInput.placeholder = t('searchPlaceholder');
+  }
+  if (masterSearchInput) {
+    masterSearchInput.disabled = false;
+    masterSearchInput.classList.remove('bg-gray-100', 'text-gray-400', 'cursor-not-allowed');
+    masterSearchInput.classList.add('bg-white', 'text-gray-900');
+    masterSearchInput.placeholder = t('searchPlaceholder');
+  }
 
   // Select All functionality
   const selectAll = document.getElementById("selectAllMasterRows");
@@ -132,11 +224,16 @@ function toggleDeleteButtonState() {
 function ensureMasterSidebarExists() {
   if (!document.getElementById("masterSidebar")) {
     const sidebarHTML = `
-      <div id="masterSidebar" class="fixed top-0 right-0 w-full md:w-[600px] h-full bg-white shadow-lg transform translate-x-full transition-transform duration-300 z-50 p-4 overflow-y-auto max-h-screen">
-        <button onclick="closeMasterSidebar()" class="mb-4 text-red-500 font-semibold w-full text-left md:w-auto">Close</button>
-        <div id="masterSidebarContent"></div>
+      <div id="masterSidebar" class="fixed top-0 right-0 w-full md:w-[600px] h-full bg-white shadow-xl transform translate-x-full transition-transform duration-300 z-50 flex flex-col">
+        <div class="flex items-center justify-between p-6 border-b border-gray-200 bg-gray-50">
+          <h3 class="text-xl font-semibold text-gray-900">製品詳細</h3>
+          <button onclick="closeMasterSidebar()" class="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors">
+            <i class="ri-close-line text-xl"></i>
+          </button>
+        </div>
+        <div id="masterSidebarContent" class="flex-1 overflow-y-auto"></div>
       </div>
-      <div id="masterSidebarOverlay" class="fixed inset-0 bg-black bg-opacity-30 hidden z-40" onclick="closeMasterSidebar()"></div>
+      <div id="masterSidebarOverlay" class="fixed inset-0 bg-black bg-opacity-50 hidden z-40" onclick="closeMasterSidebar()"></div>
     `;
     document.body.insertAdjacentHTML("beforeend", sidebarHTML);
   }
@@ -144,9 +241,49 @@ function ensureMasterSidebarExists() {
 
 function showInsertCSVForm() {
   const content = `
-    <h3 class="text-xl font-bold mb-4">CSV Import to MasterDB</h3>
-    <input type="file" id="csvUploadInput" accept=".csv" class="mb-4" />
-    <button onclick="handleCSVUpload()" class="bg-blue-500 text-white px-4 py-2 rounded">Upload CSV</button>
+    <div class="space-y-6">
+      <!-- Header Section -->
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <h1 class="text-3xl font-bold text-gray-900">${t("csvImportTitle")}</h1>
+          <p class="text-gray-600 mt-1">CSVファイルから一括でデータを登録</p>
+        </div>
+        <button onclick="loadCustomerMasterDB()" class="inline-flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
+          <i class="ri-arrow-left-line mr-2"></i>
+          戻る
+        </button>
+      </div>
+
+      <!-- CSV Upload Card -->
+      <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <div class="flex items-center gap-2 mb-4">
+          <i class="ri-file-upload-line text-lg text-blue-600"></i>
+          <h3 class="text-xl font-semibold text-gray-900">ファイルアップロード</h3>
+        </div>
+        
+        <div class="space-y-4">
+          <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-400 transition-colors">
+            <div class="mx-auto w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mb-4">
+              <i class="ri-file-excel-2-line text-2xl text-blue-600"></i>
+            </div>
+            <h4 class="text-lg font-medium text-gray-900 mb-2">CSVファイルを選択</h4>
+            <p class="text-gray-500 mb-4">ファイルをドラッグ&ドロップするか、クリックして選択してください</p>
+            <input type="file" id="csvUploadInput" accept=".csv" class="hidden" />
+            <button onclick="document.getElementById('csvUploadInput').click()" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+              <i class="ri-folder-open-line mr-2"></i>
+              ファイル選択
+            </button>
+          </div>
+          
+          <div class="flex justify-center">
+            <button onclick="handleCSVUpload()" class="inline-flex items-center px-6 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors shadow-sm">
+              <i class="ri-upload-line mr-2"></i>
+              ${t("uploadCSV")}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   `;
   document.getElementById("mainContent").innerHTML = content;
 }
@@ -224,55 +361,90 @@ function showCustomerMasterSidebar(data) {
 
   const imageHTML = data.imageURL
     ? `<img id="masterImagePreview" src="${data.imageURL}" alt="Product Image" class="w-full max-h-64 object-contain rounded shadow mb-2" />`
-    : `<p class="text-gray-500 mb-2">No image uploaded.</p>`;
+    : `<p class="text-gray-500 mb-2">${t("noImageUploaded")}</p>`;
 
   container.innerHTML = `
-    <h3 class="text-xl font-bold mb-4">${data["品番"] ?? "Details"}</h3>
-    
-    <div class="mb-4 flex gap-2">
-      <button id="showSidebarDetailTab" class="px-3 py-1 text-sm bg-blue-500 text-white rounded" onclick="showSidebarTab('detail')">詳細</button>
-      <button id="showSidebarHistoryTab" class="px-3 py-1 text-sm bg-gray-300 text-gray-700 rounded" onclick="showSidebarTab('history')">変更履歴</button>
-    </div>
+    <div class="p-6">
+      <!-- Tab Navigation -->
+      <div class="flex gap-2 mb-6">
+        <button id="showSidebarDetailTab" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors" onclick="showSidebarTab('detail')">
+          <i class="ri-information-line mr-2"></i>
+          ${t("details")}
+        </button>
+        <button id="showSidebarHistoryTab" class="inline-flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors" onclick="showSidebarTab('history')">
+          <i class="ri-history-line mr-2"></i>
+          ${t("changeHistory")}
+        </button>
+      </div>
 
-    <div id="sidebarDetailContent">
-      <div class="mb-4">
-        <h4 class="text-lg font-semibold">製品画像</h4>
-        ${imageHTML}
+      <!-- Detail Content -->
+      <div id="sidebarDetailContent">
+        <!-- Product Image Section -->
+        <div class="mb-6">
+          <h4 class="text-lg font-semibold text-gray-900 mb-3">${t("productImage")}</h4>
+          <div class="border border-gray-200 rounded-lg p-4 bg-gray-50">
+            ${imageHTML}
+            ${canEdit ? `
+              <div id="imageActionWrapper" class="hidden mt-3">
+                <button onclick="document.getElementById('masterImageUploadInput').click()" class="inline-flex items-center px-3 py-2 text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors">
+                  <i class="ri-image-add-line mr-2"></i>
+                  ${data.imageURL ? t("updateImage") : t("uploadImage")}
+                </button>
+                <input type="file" id="masterImageUploadInput" accept="image/*" class="hidden" />
+              </div>
+            ` : ''}
+          </div>
+        </div>
+
+        <!-- Product Details -->
+        <div class="space-y-4">
+          <h4 class="text-lg font-semibold text-gray-900">製品情報</h4>
+          ${fields.map(f => `
+            <div class="grid grid-cols-3 gap-4 items-center py-3 border-b border-gray-100 last:border-b-0">
+              <label class="text-sm font-medium text-gray-700">${f}</label>
+              <div class="col-span-2">
+                <input type="text" class="editable-master w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${canEdit ? 'bg-white' : 'bg-gray-50'}" data-key="${f}" value="${data[f] ?? ""}" disabled />
+              </div>
+            </div>
+          `).join("")}
+        </div>
+
+        <!-- Action Buttons -->
         ${canEdit ? `
-          <div id="imageActionWrapper" class="hidden mt-2">
-            <button onclick="document.getElementById('masterImageUploadInput').click()" class="text-blue-600 underline text-sm">
-              ${data.imageURL ? "Update Image" : "Upload Image"}
+          <div class="mt-6 flex gap-3 pt-4 border-t border-gray-200">
+            <button id="editMasterBtn" class="inline-flex items-center px-4 py-2 text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors">
+              <i class="ri-edit-line mr-2"></i>
+              ${t("edit")}
             </button>
-            <input type="file" id="masterImageUploadInput" accept="image/*" class="hidden" />
+            <button id="saveMasterBtn" class="hidden inline-flex items-center px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors">
+              <i class="ri-check-line mr-2"></i>
+              ${t("ok")}
+            </button>
+            <button id="cancelMasterBtn" class="hidden inline-flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
+              <i class="ri-close-line mr-2"></i>
+              ${t("cancel")}
+            </button>
           </div>
-        ` : ''}
+        ` : `
+          <div class="mt-6 pt-4 border-t border-gray-200">
+            <div class="flex items-center text-sm text-gray-500">
+              <i class="ri-lock-line mr-2"></i>
+              ${t("readOnly")}
+            </div>
+          </div>
+        `}
       </div>
 
-      <div class="space-y-2">
-        ${fields.map(f => `
-          <div class="flex items-center gap-2">
-            <label class="font-medium w-32 shrink-0">${f}</label>
-            <input type="text" class="editable-master p-1 border rounded w-full ${canEdit ? 'bg-gray-100' : 'bg-gray-200'}" data-key="${f}" value="${data[f] ?? ""}" disabled />
+      <!-- History Content -->
+      <div id="sidebarHistoryContent" class="hidden">
+        <div id="changeHistoryContainer" class="space-y-4">
+          <div class="text-center py-8">
+            <div class="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+              <i class="ri-history-line text-2xl text-gray-400"></i>
+            </div>
+            <p class="text-gray-500">${t("loadingHistory")}</p>
           </div>
-        `).join("")}
-      </div>
-
-      ${canEdit ? `
-        <div class="mt-4 flex gap-2">
-          <button id="editMasterBtn" class="text-blue-600 underline text-sm">Edit</button>
-          <button id="saveMasterBtn" class="hidden bg-green-500 text-white px-3 py-1 rounded text-sm">OK</button>
-          <button id="cancelMasterBtn" class="hidden bg-gray-300 text-black px-3 py-1 rounded text-sm">Cancel</button>
         </div>
-      ` : `
-        <div class="mt-4">
-          <p class="text-sm text-gray-500 italic">読み取り専用 - 編集権限がありません</p>
-        </div>
-      `}
-    </div>
-
-    <div id="sidebarHistoryContent" class="hidden">
-      <div id="changeHistoryContainer" class="space-y-3">
-        <p class="text-gray-500">履歴を読み込み中...</p>
       </div>
     </div>
   `;
@@ -453,28 +625,57 @@ function openBlankMasterForm() {
     )
   );
 
-  const fieldInputs = headers.map(key => `
-    <div class="flex items-center gap-2">
-      <label class="font-medium w-32 shrink-0">${key}</label>
-      <input type="text" class="new-master-input p-1 border rounded w-full" data-key="${key}" placeholder="${key}" />
-    </div>
-  `).join("");
-
   container.innerHTML = `
-    <h3 class="text-xl font-bold mb-4">新規製品登録</h3>
+    <div class="p-6">
+      <!-- Header -->
+      <div class="flex items-center gap-3 mb-6 pb-4 border-b border-gray-200">
+        <div class="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
+          <i class="ri-add-line text-xl text-emerald-600"></i>
+        </div>
+        <div>
+          <h3 class="text-xl font-semibold text-gray-900">${t("newRegistration")}</h3>
+          <p class="text-sm text-gray-500">${t("registerNewProduct")}</p>
+        </div>
+      </div>
 
-    <div class="mb-4">
-      <h4 class="text-lg font-semibold">製品画像</h4>
-      <p id="previewText" class="text-gray-500 mb-2">No image selected.</p>
-      <img id="newMasterPreview" class="w-full max-h-64 object-contain rounded shadow hidden mb-2" />
-      <input type="file" id="newMasterImageInput" accept="image/*" />
-    </div>
+      <!-- Product Image Section -->
+      <div class="mb-6">
+        <h4 class="text-lg font-semibold text-gray-900 mb-3">${t("productImage")}</h4>
+        <div class="border border-gray-200 rounded-lg p-4 bg-gray-50">
+          <p id="previewText" class="text-gray-500 mb-2">${t("noImageSelected")}</p>
+          <img id="newMasterPreview" class="w-full max-h-64 object-contain rounded shadow hidden mb-2" />
+          <button onclick="document.getElementById('newMasterImageInput').click()" class="inline-flex items-center px-3 py-2 text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors">
+            <i class="ri-image-add-line mr-2"></i>
+            ${t("selectImage")}
+          </button>
+          <input type="file" id="newMasterImageInput" accept="image/*" class="hidden" />
+        </div>
+      </div>
 
-    <div class="space-y-2">${fieldInputs}</div>
+      <!-- Product Information -->
+      <div class="space-y-4 mb-6">
+        <h4 class="text-lg font-semibold text-gray-900">${t("productInformation")}</h4>
+        ${headers.map(key => `
+          <div class="grid grid-cols-3 gap-4 items-center py-3 border-b border-gray-100 last:border-b-0">
+            <label class="text-sm font-medium text-gray-700">${key}</label>
+            <div class="col-span-2">
+              <input type="text" class="new-master-input w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" data-key="${key}" placeholder="${t("enter")} ${key}" />
+            </div>
+          </div>
+        `).join("")}
+      </div>
 
-    <div class="mt-4 flex gap-2">
-      <button id="submitNewMasterBtn" class="bg-green-600 text-white px-4 py-2 rounded">登録</button>
-      <button onclick="closeMasterSidebar()" class="bg-gray-300 text-black px-4 py-2 rounded">キャンセル</button>
+      <!-- Action Buttons -->
+      <div class="flex gap-3 pt-4 border-t border-gray-200">
+        <button id="submitNewMasterBtn" class="inline-flex items-center px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors">
+          <i class="ri-check-line mr-2"></i>
+          ${t("register")}
+        </button>
+        <button onclick="closeMasterSidebar()" class="inline-flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
+          <i class="ri-close-line mr-2"></i>
+          ${t("cancel")}
+        </button>
+      </div>
     </div>
   `;
 
@@ -559,6 +760,8 @@ function showMasterDBTab(tabName) {
   const historyTab = document.getElementById('showMainHistoryTab');
   const dataContent = document.getElementById('dataTabContent');
   const historyContent = document.getElementById('historyTabContent');
+  const topSearchInput = document.getElementById('searchInput');
+  const masterSearchInput = document.getElementById('masterSearchInput');
 
   if (tabName === 'data') {
     dataTab.classList.remove('bg-gray-300', 'text-gray-700');
@@ -568,6 +771,20 @@ function showMasterDBTab(tabName) {
     
     dataContent.classList.remove('hidden');
     historyContent.classList.add('hidden');
+    
+    // Enable both search inputs for data tab
+    if (topSearchInput) {
+      topSearchInput.disabled = false;
+      topSearchInput.classList.remove('bg-gray-100', 'text-gray-400', 'cursor-not-allowed');
+      topSearchInput.classList.add('bg-white', 'text-gray-900');
+      topSearchInput.placeholder = t('searchPlaceholder');
+    }
+    if (masterSearchInput) {
+      masterSearchInput.disabled = false;
+      masterSearchInput.classList.remove('bg-gray-100', 'text-gray-400', 'cursor-not-allowed');
+      masterSearchInput.classList.add('bg-white', 'text-gray-900');
+      masterSearchInput.placeholder = t('searchPlaceholder');
+    }
   } else if (tabName === 'history') {
     historyTab.classList.remove('bg-gray-300', 'text-gray-700');
     historyTab.classList.add('bg-blue-500', 'text-white');
@@ -577,12 +794,33 @@ function showMasterDBTab(tabName) {
     dataContent.classList.add('hidden');
     historyContent.classList.remove('hidden');
     
+    // Disable and grey out both search inputs for history tab
+    if (topSearchInput) {
+      topSearchInput.disabled = true;
+      topSearchInput.classList.remove('bg-white', 'text-gray-900');
+      topSearchInput.classList.add('bg-gray-100', 'text-gray-400', 'cursor-not-allowed');
+      topSearchInput.placeholder = t('useHistorySearchBelow');
+      topSearchInput.value = ''; // Clear any existing search
+    }
+    if (masterSearchInput) {
+      masterSearchInput.disabled = true;
+      masterSearchInput.classList.remove('bg-white', 'text-gray-900');
+      masterSearchInput.classList.add('bg-gray-100', 'text-gray-400', 'cursor-not-allowed');
+      masterSearchInput.placeholder = t('useHistorySearchBelow');
+      masterSearchInput.value = ''; // Clear any existing search
+    }
+    
     // Load creation and deletion history when switching to history tab
     loadMasterDBHistory();
   }
 }
 
-// Function to load creation and deletion history for masterDB
+// Enhanced history loading with pagination, search, and filters
+let allHistoryData = [];
+let filteredHistoryData = [];
+let currentHistoryPage = 1;
+let historyItemsPerPage = 25;
+
 async function loadMasterDBHistory() {
   const container = document.getElementById('masterHistoryContainer');
   const currentUser = JSON.parse(localStorage.getItem("authUser") || "{}");
@@ -600,11 +838,211 @@ async function loadMasterDBHistory() {
       throw new Error('Failed to load history');
     }
 
-    const history = await response.json();
-    renderMasterDBHistoryList(history);
+    allHistoryData = await response.json();
+    initializeHistoryFilters();
+    applyHistoryFilters();
+    setupHistoryEventListeners();
   } catch (error) {
     console.error('Error loading history:', error);
-    container.innerHTML = '<p class="text-sm text-red-500">履歴の読み込みに失敗しました。</p>';
+    container.innerHTML = `<p class="text-sm text-red-500">${t("loadingHistory")} エラーが発生しました。</p>`;
+  }
+}
+
+// Initialize filter dropdowns with available options
+function initializeHistoryFilters() {
+  const userFilter = document.getElementById('historyUserFilter');
+  const users = [...new Set(allHistoryData.map(entry => 
+    entry.deletedBy || entry.createdBy || 'Unknown'
+  ))].sort();
+  
+  userFilter.innerHTML = `<option value="">${t("allUsers")}</option>`;
+  users.forEach(user => {
+    userFilter.innerHTML += `<option value="${user}">${user}</option>`;
+  });
+}
+
+// Setup event listeners for search and filters
+function setupHistoryEventListeners() {
+  const searchInput = document.getElementById('historySearchInput');
+  const actionFilter = document.getElementById('historyActionFilter');
+  const userFilter = document.getElementById('historyUserFilter');
+  const itemsPerPageSelect = document.getElementById('historyItemsPerPage');
+
+  // Debounced search
+  let searchTimeout;
+  searchInput.addEventListener('input', function() {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+      currentHistoryPage = 1;
+      applyHistoryFilters();
+    }, 300);
+  });
+
+  // Filter changes
+  [actionFilter, userFilter].forEach(filter => {
+    filter.addEventListener('change', () => {
+      currentHistoryPage = 1;
+      applyHistoryFilters();
+    });
+  });
+
+  // Items per page change
+  itemsPerPageSelect.addEventListener('change', function() {
+    historyItemsPerPage = parseInt(this.value);
+    currentHistoryPage = 1;
+    renderHistoryPage();
+  });
+}
+
+// Apply search and filters to data
+function applyHistoryFilters() {
+  const searchTerm = document.getElementById('historySearchInput').value.toLowerCase();
+  const actionFilter = document.getElementById('historyActionFilter').value;
+  const userFilter = document.getElementById('historyUserFilter').value;
+
+  filteredHistoryData = allHistoryData.filter(entry => {
+    const recordInfo = entry.recordData || {};
+    const isDeleteAction = entry.action && (entry.action.includes('削除') || entry.action.toLowerCase().includes('delete'));
+    const user = entry.deletedBy || entry.createdBy || 'Unknown';
+    
+    // Search filter
+    const searchMatches = !searchTerm || 
+      (recordInfo['品番'] && recordInfo['品番'].toLowerCase().includes(searchTerm)) ||
+      Object.values(recordInfo).some(value => 
+        value && value.toString().toLowerCase().includes(searchTerm)
+      ) ||
+      user.toLowerCase().includes(searchTerm);
+    
+    // Action filter
+    const actionMatches = !actionFilter || 
+      (actionFilter === 'creation' && !isDeleteAction) ||
+      (actionFilter === 'deletion' && isDeleteAction);
+    
+    // User filter
+    const userMatches = !userFilter || user === userFilter;
+    
+    return searchMatches && actionMatches && userMatches;
+  });
+
+  currentHistoryPage = 1;
+  renderHistoryPage();
+}
+
+// Render current page of history
+function renderHistoryPage() {
+  const container = document.getElementById('masterHistoryContainer');
+  const resultsInfo = document.getElementById('historyResultsInfo');
+  
+  if (!filteredHistoryData || filteredHistoryData.length === 0) {
+    container.innerHTML = `
+      <div class="text-center py-8">
+        <div class="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+          <i class="ri-file-text-line text-2xl text-gray-400"></i>
+        </div>
+        <p class="text-gray-500">${t("noHistoryFound")}</p>
+      </div>
+    `;
+    resultsInfo.textContent = t("noHistoryFound");
+    document.getElementById('historyPaginationContainer').innerHTML = '';
+    return;
+  }
+
+  // Calculate pagination
+  const totalItems = filteredHistoryData.length;
+  const totalPages = Math.ceil(totalItems / historyItemsPerPage);
+  const startIndex = (currentHistoryPage - 1) * historyItemsPerPage;
+  const endIndex = Math.min(startIndex + historyItemsPerPage, totalItems);
+  const pageData = filteredHistoryData.slice(startIndex, endIndex);
+
+  // Update results info
+  resultsInfo.innerHTML = `${t("showingResults")} ${startIndex + 1} ${t("to")} ${endIndex} ${t("of")} ${totalItems} ${t("totalResults")}`;
+
+  // Render history items
+  renderMasterDBHistoryList(pageData);
+  
+  // Render pagination controls
+  renderHistoryPagination(totalPages);
+}
+
+// Render pagination controls
+function renderHistoryPagination(totalPages) {
+  const container = document.getElementById('historyPaginationContainer');
+  
+  if (totalPages <= 1) {
+    container.innerHTML = '';
+    return;
+  }
+
+  const pagination = `
+    <nav class="flex items-center gap-2">
+      <button 
+        onclick="changeHistoryPage(${currentHistoryPage - 1})" 
+        ${currentHistoryPage <= 1 ? 'disabled' : ''}
+        class="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        <i class="ri-arrow-left-s-line mr-1"></i>
+        ${t("previous")}
+      </button>
+      
+      <div class="flex items-center gap-1">
+        ${Array.from({length: Math.min(7, totalPages)}, (_, i) => {
+          let pageNum;
+          if (totalPages <= 7) {
+            pageNum = i + 1;
+          } else if (currentHistoryPage <= 4) {
+            pageNum = i + 1;
+          } else if (currentHistoryPage >= totalPages - 3) {
+            pageNum = totalPages - 6 + i;
+          } else {
+            pageNum = currentHistoryPage - 3 + i;
+          }
+          
+          const isActive = pageNum === currentHistoryPage;
+          return `
+            <button 
+              onclick="changeHistoryPage(${pageNum})"
+              class="inline-flex items-center px-3 py-2 text-sm font-medium ${
+                isActive 
+                  ? 'text-blue-600 bg-blue-50 border border-blue-300' 
+                  : 'text-gray-500 bg-white border border-gray-300 hover:bg-gray-50 hover:text-gray-700'
+              } rounded-lg"
+            >
+              ${pageNum}
+            </button>
+          `;
+        }).join('')}
+        
+        ${totalPages > 7 && currentHistoryPage < totalPages - 3 ? `
+          <span class="px-2 text-gray-500">...</span>
+          <button 
+            onclick="changeHistoryPage(${totalPages})"
+            class="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:text-gray-700"
+          >
+            ${totalPages}
+          </button>
+        ` : ''}
+      </div>
+      
+      <button 
+        onclick="changeHistoryPage(${currentHistoryPage + 1})" 
+        ${currentHistoryPage >= totalPages ? 'disabled' : ''}
+        class="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        ${t("next")}
+        <i class="ri-arrow-right-s-line ml-1"></i>
+      </button>
+    </nav>
+  `;
+  
+  container.innerHTML = pagination;
+}
+
+// Change page function
+function changeHistoryPage(newPage) {
+  const totalPages = Math.ceil(filteredHistoryData.length / historyItemsPerPage);
+  if (newPage >= 1 && newPage <= totalPages) {
+    currentHistoryPage = newPage;
+    renderHistoryPage();
   }
 }
 
