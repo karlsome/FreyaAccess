@@ -52,10 +52,10 @@ function renderSidebarNavigation() {
   navList.innerHTML = "";
 
   const navItems = {
-    dashboard: ["Dashboard", "ri-dashboard-line"],
-    masterDB: ["MasterDB", "ri-database-2-line"],
-    submittedDB: ["SubmittedDB", "ri-file-upload-line"],
-    userManagement: ["Users", "ri-user-settings-line"]
+    dashboard: [t("dashboard"), "ri-dashboard-line"],
+    masterDB: [t("masterDB"), "ri-database-2-line"],
+    submittedDB: [t("submittedDB"), "ri-file-upload-line"],
+    userManagement: [t("userManagement"), "ri-user-settings-line"]
   };
 
   const allowedPages = roleAccess[role] || [];
@@ -74,8 +74,8 @@ function loadPage(page) {
   switch (page) {
     case "dashboard":
         mainContent.innerHTML = `
-            <h2 class="text-2xl font-semibold mb-4">Device Overview</h2>
-            <div id="deviceOverviewContainer">Loading devices...</div>
+            <h2 class="text-2xl font-semibold mb-4">${t("deviceOverview")}</h2>
+            <div id="deviceOverviewContainer">${t("loadingDevices")}</div>
         `;
         loadDeviceOverview();
         break;
@@ -83,10 +83,10 @@ function loadPage(page) {
     case "userManagement":
         mainContent.innerHTML = `
             <div class="flex items-center justify-between mb-4">
-            <h2 class="text-2xl font-semibold">ユーザー管理</h2>
-            <button onclick="showCreateUserForm()" class="bg-green-600 text-white px-4 py-1 rounded text-sm">新規ユーザー作成</button>
+            <h2 class="text-2xl font-semibold">${t("userManagement")}</h2>
+            <button onclick="showCreateUserForm()" class="bg-green-600 text-white px-4 py-1 rounded text-sm">${t("createNewUser")}</button>
             </div>
-            <div id="userTableContainer">読み込み中...</div>
+            <div id="userTableContainer">${t("loadingUsers")}</div>
         `;
         loadCustomerUsers();
         break;
@@ -98,16 +98,16 @@ function loadPage(page) {
     case "masterDB":
       mainContent.innerHTML = `
         <div class="flex items-center justify-between mb-4">
-          <h2 class="text-2xl font-semibold">製品マスタ一覧</h2>
+          <h2 class="text-2xl font-semibold">${t("productMasterList")}</h2>
           <div class="flex gap-2">
-            <button onclick="showInsertCSVForm()" class="bg-blue-600 text-white px-4 py-1 rounded text-sm">CSV一括登録</button>
-            <button onclick="openBlankMasterForm()" class="bg-green-600 text-white px-4 py-1 rounded text-sm">新規登録</button>
+            <button onclick="showInsertCSVForm()" class="bg-blue-600 text-white px-4 py-1 rounded text-sm">${t("csvBulkRegistration")}</button>
+            <button onclick="openBlankMasterForm()" class="bg-green-600 text-white px-4 py-1 rounded text-sm">${t("newRegistration")}</button>
           </div>
         </div>
         <div class="mb-4">
-          <input type="text" id="masterSearchInput" class="w-full p-2 border rounded" placeholder="品番、モデル、背番号などで検索..." />
+          <input type="text" id="masterSearchInput" class="w-full p-2 border rounded" placeholder="${t("searchPlaceholder")}" />
         </div>
-        <div id="masterTableContainer">Loading...</div>
+        <div id="masterTableContainer">${t("loading")}</div>
       `;
       loadCustomerMasterDB();
 
@@ -132,14 +132,14 @@ function loadPage(page) {
 
     case "submittedDB":
       mainContent.innerHTML = `
-        <h2 class="text-2xl font-semibold mb-4">送信済データ一覧</h2>
-        <p>現在準備中です。</p>
-        <div class="text-sm text-gray-500">※ ご希望があればこのセクションも構築します。</div>
+        <h2 class="text-2xl font-semibold mb-4">${t("submittedDataList")}</h2>
+        <p>${t("currentlyInPreparation")}</p>
+        <div class="text-sm text-gray-500">${t("noteIfRequested")}</div>
       `;
       break;
 
     default:
-      mainContent.innerHTML = `<p>ページが見つかりません: ${page}</p>`;
+      mainContent.innerHTML = `<p>${t("pageNotFound")}: ${page}</p>`;
   }
 }
 

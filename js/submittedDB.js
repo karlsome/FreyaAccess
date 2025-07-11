@@ -64,7 +64,7 @@ function initializeTableHeaders(records) {
 async function fetchAndRenderData(resetPage = false) {
     if (resetPage) currentPage = 1;
     const tableContainer = document.getElementById("submittedTableContainer");
-    tableContainer.innerHTML = `<div class="text-center text-gray-500 py-4">読み込み中...</div>`;
+    tableContainer.innerHTML = `<div class="text-center text-gray-500 py-4">${t("loadingData")}</div>`;
 
     const mongoSortObject = { [currentSort.column]: currentSort.direction === 'asc' ? 1 : -1 };
     
@@ -107,7 +107,7 @@ async function fetchAndRenderData(resetPage = false) {
 
     } catch (error) {
         console.error('送信済みデータの取得に失敗しました:', error);
-        tableContainer.innerHTML = `<div class="text-center text-red-500 py-4">データの読み込みエラー: ${error.message}</div>`;
+        tableContainer.innerHTML = `<div class="text-center text-red-500 py-4">${t("dataLoadError")}: ${error.message}</div>`;
     }
 }
 
@@ -264,7 +264,7 @@ function showDetailsPanel(record) {
     const panel = document.getElementById('detailsPanel');
     const panelContent = document.getElementById('detailsPanelContent');
     const panelOverlay = document.getElementById('detailsPanelOverlay');
-    document.getElementById('detailsPanelTitle').textContent = record['品番'] || '詳細'; 
+    document.getElementById('detailsPanelTitle').textContent = record['品番'] || t('details'); 
     let contentHtml = '';
     const preferredOrder = ['品番', '日付', '時間', 'アクション', 'デバイス名', 'ユニークID', 'コメント', '職長', '班長', 'QR1ステータス', 'QR2ステータス', 'QR3ステータス', 'データ送信ステータス'];
     const displayedKeys = new Set();
@@ -296,7 +296,7 @@ function initiateExport(format) {
     const modal = document.getElementById('exportOptionsModal');
     let checkboxHtml = '';
     if (discoveredTableHeaders.length === 0) {
-        alert("テーブルヘッダーがまだロードされていません。データがロードされるのを待つか、フィルターを適用してみてください。");
+        alert(t("headersNotLoaded"));
         return;
     }
     discoveredTableHeaders.forEach(h => {
@@ -318,7 +318,7 @@ function closeExportModal() {
 
 async function executeExportCsv() {
     const selectedExportKeys = Object.keys(exportColumnSelection).filter(key => exportColumnSelection[key] && discoveredTableHeaders.some(h => h.key === key));
-    if (selectedExportKeys.length === 0) { alert("エクスポートする列を少なくとも1つ選択してください。"); return; }
+    if (selectedExportKeys.length === 0) { alert(t("selectColumns")); return; }
 
     let idsToFetchArray = [];
     let fetchAllFiltered = false;
@@ -341,7 +341,7 @@ async function executeExportCsv() {
     };
     
     const loadingIndicator = document.createElement('div'); 
-    loadingIndicator.textContent = 'CSVエクスポートを準備中です、しばらくお待ちください...';
+    loadingIndicator.textContent = t("csvExportPrep");
     loadingIndicator.className = 'fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white p-4 rounded shadow-lg z-[100]'; 
     document.body.appendChild(loadingIndicator);
 
@@ -366,7 +366,7 @@ async function executeExportCsv() {
         URL.revokeObjectURL(link.href); 
     } catch(error) { 
         console.error("CSVエクスポート中のエラー:", error);
-        alert("CSVのエクスポートに失敗しました: " + error.message);
+        alert(t("csvExportFailed") + ": " + error.message);
     } finally { 
         if (document.body.contains(loadingIndicator)) {
             document.body.removeChild(loadingIndicator);
@@ -376,7 +376,7 @@ async function executeExportCsv() {
 
 async function executeExportPdf() {
     const selectedExportKeys = Object.keys(exportColumnSelection).filter(key => exportColumnSelection[key] && discoveredTableHeaders.some(h => h.key === key));
-    if (selectedExportKeys.length === 0) { alert("エクスポートする列を少なくとも1つ選択してください。"); return; }
+    if (selectedExportKeys.length === 0) { alert(t("selectColumns")); return; }
     
     let idsToFetchArray = [];
     let fetchAllFiltered = false;
@@ -400,7 +400,7 @@ async function executeExportPdf() {
     };
     
     const loadingIndicator = document.createElement('div'); 
-    loadingIndicator.textContent = 'PDFエクスポートを準備中です、しばらくお待ちください...';
+    loadingIndicator.textContent = t("pdfExportPrep");
     loadingIndicator.className = 'fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white p-4 rounded shadow-lg z-[100]';
     document.body.appendChild(loadingIndicator);
 
@@ -433,7 +433,7 @@ async function executeExportPdf() {
             console.log("Noto Sans JPフォントがPDF用に登録されました。");
         } catch (fontError) {
             console.error("Noto Sans JPフォントのPDFへの登録に失敗しました:", fontError);
-            alert("日本語フォントのPDFへの読み込みに失敗しました。PDFは標準フォントを使用します。");
+            alert(t("fontLoadFailed"));
         }
         
         doc.autoTable({
@@ -449,7 +449,7 @@ async function executeExportPdf() {
         doc.save(`送信済みログ_${new Date().toISOString().split('T')[0]}.pdf`);
     } catch(error) { 
         console.error("PDFエクスポート中のエラー:", error);
-        alert("PDFのエクスポートに失敗しました: " + error.message);
+        alert(t("pdfExportFailed") + ": " + error.message);
     } finally { 
          if (document.body.contains(loadingIndicator)) {
             document.body.removeChild(loadingIndicator);
@@ -460,18 +460,18 @@ async function executeExportPdf() {
 async function loadSubmittedDbPage() {
     const mainContent = document.getElementById("mainContent");
     mainContent.innerHTML = `
-        <h2 class="text-2xl font-semibold mb-4">送信済みログ</h2>
+        <h2 class="text-2xl font-semibold mb-4">${t("submittedLog")}</h2>
         <div class="bg-white p-4 rounded-lg shadow-md border border-gray-200 mb-6">
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
-                <div class="flex flex-col"><label for="fromDateFilter" class="text-xs text-gray-600 mb-1">開始日</label><input type="date" id="fromDateFilter" class="p-2 border rounded w-full"></div>
-                <div class="flex flex-col"><label for="toDateFilter" class="text-xs text-gray-600 mb-1">終了日</label><input type="date" id="toDateFilter" class="p-2 border rounded w-full"></div>
-                <div class="flex flex-col"><label for="actionFilter" class="text-xs text-gray-600 mb-1">アクション</label><select id="actionFilter" class="p-2 border rounded w-full bg-white"></select></div>
-                <div class="flex flex-col"><label for="hinbanFilter" class="text-xs text-gray-600 mb-1">品番</label><input type="text" id="hinbanFilter" class="p-2 border rounded w-full" placeholder="検索..."></div>
-                <button onclick="applyFilters()" class="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700 w-full h-10">フィルター適用</button>
+                <div class="flex flex-col"><label for="fromDateFilter" class="text-xs text-gray-600 mb-1">${t("startDate")}</label><input type="date" id="fromDateFilter" class="p-2 border rounded w-full"></div>
+                <div class="flex flex-col"><label for="toDateFilter" class="text-xs text-gray-600 mb-1">${t("endDate")}</label><input type="date" id="toDateFilter" class="p-2 border rounded w-full"></div>
+                <div class="flex flex-col"><label for="actionFilter" class="text-xs text-gray-600 mb-1">${t("action")}</label><select id="actionFilter" class="p-2 border rounded w-full bg-white"></select></div>
+                <div class="flex flex-col"><label for="hinbanFilter" class="text-xs text-gray-600 mb-1">${t("productNumber")}</label><input type="text" id="hinbanFilter" class="p-2 border rounded w-full" placeholder="${t("searchPlaceholder")}"></div>
+                <button onclick="applyFilters()" class="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700 w-full h-10">${t("applyFilter")}</button>
             </div>
             <div class="flex items-center justify-between mt-4">
-                 <div class="flex items-center gap-2 text-sm"><label for="itemsPerPageSelector" class="text-gray-600">表示件数:</label><select id="itemsPerPageSelector" class="p-1 border rounded bg-white" onchange="changeItemsPerPage(this)"><option value="10">10</option><option value="50" selected>50</option><option value="100">100</option></select><span class="text-gray-600">件</span></div>
-                <div class="flex gap-2"><button onclick="initiateExport('csv')" class="bg-green-600 text-white px-4 py-2 rounded text-sm hover:bg-green-700">CSVエクスポート</button><button onclick="initiateExport('pdf')" class="bg-red-600 text-white px-4 py-2 rounded text-sm hover:bg-red-700">PDFエクスポート</button></div>
+                 <div class="flex items-center gap-2 text-sm"><label for="itemsPerPageSelector" class="text-gray-600">${t("itemsPerPage")}:</label><select id="itemsPerPageSelector" class="p-1 border rounded bg-white" onchange="changeItemsPerPage(this)"><option value="10">10</option><option value="50" selected>50</option><option value="100">100</option></select><span class="text-gray-600">${t("items")}</span></div>
+                <div class="flex gap-2"><button onclick="initiateExport('csv')" class="bg-green-600 text-white px-4 py-2 rounded text-sm hover:bg-green-700">${t("csvExport")}</button><button onclick="initiateExport('pdf')" class="bg-red-600 text-white px-4 py-2 rounded text-sm hover:bg-red-700">${t("pdfExport")}</button></div>
             </div>
         </div>
         <div id="submittedTableContainer"></div><div id="paginationContainer"></div>
@@ -488,7 +488,7 @@ async function loadSubmittedDbPage() {
             const actions = await response.json();
             const select = document.getElementById('actionFilter');
             if (select) {
-                select.innerHTML = '<option value="">全てのアクション</option>';
+                select.innerHTML = `<option value="">${t("allActions")}</option>`;
                 actions.forEach(item => { if (item._id) select.innerHTML += `<option value="${item._id}">${item._id}</option>`; });
             }
         } catch (error) { 

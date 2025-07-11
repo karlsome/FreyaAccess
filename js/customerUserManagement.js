@@ -29,13 +29,13 @@ function showCreateUserForm() {
 
   const formHTML = `
     <div class="bg-white border p-4 rounded shadow mb-4 max-w-xl">
-      <h3 class="text-lg font-semibold mb-2">新規ユーザー作成</h3>
+      <h3 class="text-lg font-semibold mb-2">${t("createNewUser")}</h3>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <input type="text" id="newFirstName" placeholder="First Name" class="border p-2 rounded w-full" />
-        <input type="text" id="newLastName" placeholder="Last Name" class="border p-2 rounded w-full" />
-        <input type="email" id="newEmail" placeholder="Email" class="border p-2 rounded w-full" />
-        <input type="text" id="newUsername" placeholder="Username" class="border p-2 rounded w-full" />
-        <input type="password" id="newPassword" placeholder="Password" class="border p-2 rounded w-full" />
+        <input type="text" id="newFirstName" placeholder="${t("firstName")}" class="border p-2 rounded w-full" />
+        <input type="text" id="newLastName" placeholder="${t("lastName")}" class="border p-2 rounded w-full" />
+        <input type="email" id="newEmail" placeholder="${t("email")}" class="border p-2 rounded w-full" />
+        <input type="text" id="newUsername" placeholder="${t("username")}" class="border p-2 rounded w-full" />
+        <input type="password" id="newPassword" placeholder="${t("password")}" class="border p-2 rounded w-full" />
         <select id="newRole" class="border p-2 rounded w-full">
           <option value="">Select Role</option>
           <option value="admin">admin</option>
@@ -44,8 +44,8 @@ function showCreateUserForm() {
         </select>
       </div>
       <div class="mt-4 flex gap-2">
-        <button class="bg-green-600 text-white px-4 py-2 rounded" onclick="submitNewUser()">登録</button>
-        <button class="bg-gray-400 text-white px-4 py-2 rounded" onclick="loadCustomerUsers()">キャンセル</button>
+        <button class="bg-green-600 text-white px-4 py-2 rounded" onclick="submitNewUser()">${t("save")}</button>
+        <button class="bg-gray-400 text-white px-4 py-2 rounded" onclick="loadCustomerUsers()">${t("cancel")}</button>
       </div>
     </div>
   `;
@@ -99,11 +99,11 @@ async function saveUser(userId) {
     const result = await res.json();
     if (!res.ok || !result.modifiedCount) throw new Error("更新失敗");
 
-    alert("更新成功");
+    alert(t("updateSuccess"));
     loadCustomerUsers();
   } catch (err) {
     console.error("更新エラー:", err);
-    alert("ユーザー更新失敗");
+    alert(t("updateFailed"));
   }
 }
 
@@ -126,11 +126,11 @@ async function deleteUser(userId) {
     const result = await res.json();
     if (!res.ok || !result.deletedCount) throw new Error("削除失敗");
 
-    alert("削除完了しました");
+    alert(t("deleteSuccess"));
     loadCustomerUsers();
   } catch (err) {
     console.error("削除エラー:", err);
-    alert("削除に失敗しました");
+    alert(t("deleteFailed"));
   }
 }
 
@@ -140,7 +140,7 @@ function renderUserTable(users) {
   const isAdmin = ["admin", "masterUser"].includes(currentUser.role);
 
   if (!isAdmin) {
-    document.getElementById("userTableContainer").innerHTML = `<p>アクセス権限がありません。</p>`;
+    document.getElementById("userTableContainer").innerHTML = `<p>${t("noAccess")}</p>`;
     return;
   }
 
@@ -200,7 +200,7 @@ async function submitNewUser() {
   };
 
   if (!data.firstName || !data.lastName || !data.email || !data.username || !data.password || !data.role) {
-    return alert("すべてのフィールドを入力してください");
+    return alert(t("fillAllFields"));
   }
 
   try {
@@ -230,11 +230,11 @@ async function submitNewUser() {
       throw new Error(errorMessage);
     }
 
-    alert("ユーザー作成成功");
+    alert(t("userCreateSuccess"));
     loadCustomerUsers();
   } catch (err) {
     console.error("Create error:", err);
-    alert("作成エラー: " + err.message);
+    alert(t("createError") + ": " + err.message);
   }
 }
 
@@ -243,13 +243,13 @@ async function resetUserPassword(userId) {
   if (!newPassword) return;
   
   if (newPassword.length < 6) {
-    alert("パスワードは6文字以上である必要があります");
+    alert(t("passwordMinLength"));
     return;
   }
 
   const confirmPassword = prompt("パスワードを再入力して確認してください:");
   if (newPassword !== confirmPassword) {
-    alert("パスワードが一致しません");
+    alert(t("passwordMismatch"));
     return;
   }
 
@@ -273,7 +273,7 @@ async function resetUserPassword(userId) {
     const result = await res.json();
     if (!res.ok) throw new Error(result.error || "パスワードリセットに失敗しました");
 
-    alert("パスワードリセット成功");
+    alert(t("passwordResetSuccess"));
   } catch (err) {
     console.error("パスワードリセットエラー:", err);
     alert("パスワードリセット失敗: " + err.message);

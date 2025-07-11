@@ -17,7 +17,7 @@ async function loadCustomerMasterDB() {
     renderCustomerMasterTable(customerMasterData);
   } catch (err) {
     console.error("Error loading masterDB:", err);
-    mainContent.innerHTML = `<p class='text-red-500'>Failed to load masterDB.</p>`;
+    mainContent.innerHTML = `<p class='text-red-500'>${t("failedToLoadMasterDB")}</p>`;
   }
 }
 
@@ -25,7 +25,7 @@ function renderCustomerMasterTable(data) {
   const tableContainer = document.getElementById("masterTableContainer");
 
   if (!data.length) {
-    tableContainer.innerHTML = `<p>No data found.</p>`;
+    tableContainer.innerHTML = `<p>${t("noDataFound")}</p>`;
     return;
   }
 
@@ -43,12 +43,12 @@ function renderCustomerMasterTable(data) {
   const tableHTML = `
     <div class="mb-4 flex justify-between items-center">
       <div class="flex gap-2">
-        <button id="showMainDataTab" class="px-4 py-2 bg-blue-500 text-white rounded text-sm" onclick="showMasterDBTab('data')">データ一覧</button>
-        <button id="showMainHistoryTab" class="px-4 py-2 bg-gray-300 text-gray-700 rounded text-sm" onclick="showMasterDBTab('history')">作成・削除履歴</button>
+        <button id="showMainDataTab" class="px-4 py-2 bg-blue-500 text-white rounded text-sm" onclick="showMasterDBTab('data')">${t("dataList")}</button>
+        <button id="showMainHistoryTab" class="px-4 py-2 bg-gray-300 text-gray-700 rounded text-sm" onclick="showMasterDBTab('history')">${t("creationDeletionHistory")}</button>
       </div>
       ${showDeleteButton ? `
         <button id="deleteSelectedBtn" onclick="deleteSelectedMasterRecords()" class="bg-red-600 text-white px-3 py-1 rounded text-sm opacity-50 cursor-not-allowed" disabled>
-            選択削除 (Delete Selected)
+            ${t("deleteSelected")}
         </button>
       ` : ""}
     </div>
@@ -83,7 +83,7 @@ function renderCustomerMasterTable(data) {
 
     <div id="historyTabContent" class="hidden">
       <div id="masterHistoryContainer" class="space-y-4">
-        <p class="text-gray-500">履歴を読み込み中...</p>
+        <p class="text-gray-500">${t("loadingHistory")}</p>
       </div>
     </div>
   `;
@@ -133,7 +133,7 @@ function ensureMasterSidebarExists() {
   if (!document.getElementById("masterSidebar")) {
     const sidebarHTML = `
       <div id="masterSidebar" class="fixed top-0 right-0 w-full md:w-[600px] h-full bg-white shadow-lg transform translate-x-full transition-transform duration-300 z-50 p-4 overflow-y-auto max-h-screen">
-        <button onclick="closeMasterSidebar()" class="mb-4 text-red-500 font-semibold w-full text-left md:w-auto">Close</button>
+        <button onclick="closeMasterSidebar()" class="mb-4 text-red-500 font-semibold w-full text-left md:w-auto">${t("close")}</button>
         <div id="masterSidebarContent"></div>
       </div>
       <div id="masterSidebarOverlay" class="fixed inset-0 bg-black bg-opacity-30 hidden z-40" onclick="closeMasterSidebar()"></div>
@@ -144,9 +144,9 @@ function ensureMasterSidebarExists() {
 
 function showInsertCSVForm() {
   const content = `
-    <h3 class="text-xl font-bold mb-4">CSV Import to MasterDB</h3>
+    <h3 class="text-xl font-bold mb-4">${t("csvImportTitle")}</h3>
     <input type="file" id="csvUploadInput" accept=".csv" class="mb-4" />
-    <button onclick="handleCSVUpload()" class="bg-blue-500 text-white px-4 py-2 rounded">Upload CSV</button>
+    <button onclick="handleCSVUpload()" class="bg-blue-500 text-white px-4 py-2 rounded">${t("uploadCSV")}</button>
   `;
   document.getElementById("mainContent").innerHTML = content;
 }
@@ -224,24 +224,24 @@ function showCustomerMasterSidebar(data) {
 
   const imageHTML = data.imageURL
     ? `<img id="masterImagePreview" src="${data.imageURL}" alt="Product Image" class="w-full max-h-64 object-contain rounded shadow mb-2" />`
-    : `<p class="text-gray-500 mb-2">No image uploaded.</p>`;
+    : `<p class="text-gray-500 mb-2">${t("noImageUploaded")}</p>`;
 
   container.innerHTML = `
-    <h3 class="text-xl font-bold mb-4">${data["品番"] ?? "Details"}</h3>
+    <h3 class="text-xl font-bold mb-4">${data["品番"] ?? t("details")}</h3>
     
     <div class="mb-4 flex gap-2">
-      <button id="showSidebarDetailTab" class="px-3 py-1 text-sm bg-blue-500 text-white rounded" onclick="showSidebarTab('detail')">詳細</button>
-      <button id="showSidebarHistoryTab" class="px-3 py-1 text-sm bg-gray-300 text-gray-700 rounded" onclick="showSidebarTab('history')">変更履歴</button>
+      <button id="showSidebarDetailTab" class="px-3 py-1 text-sm bg-blue-500 text-white rounded" onclick="showSidebarTab('detail')">${t("details")}</button>
+      <button id="showSidebarHistoryTab" class="px-3 py-1 text-sm bg-gray-300 text-gray-700 rounded" onclick="showSidebarTab('history')">${t("changeHistory")}</button>
     </div>
 
     <div id="sidebarDetailContent">
       <div class="mb-4">
-        <h4 class="text-lg font-semibold">製品画像</h4>
+        <h4 class="text-lg font-semibold">${t("productImage")}</h4>
         ${imageHTML}
         ${canEdit ? `
           <div id="imageActionWrapper" class="hidden mt-2">
             <button onclick="document.getElementById('masterImageUploadInput').click()" class="text-blue-600 underline text-sm">
-              ${data.imageURL ? "Update Image" : "Upload Image"}
+              ${data.imageURL ? t("updateImage") : t("uploadImage")}
             </button>
             <input type="file" id="masterImageUploadInput" accept="image/*" class="hidden" />
           </div>
@@ -259,20 +259,20 @@ function showCustomerMasterSidebar(data) {
 
       ${canEdit ? `
         <div class="mt-4 flex gap-2">
-          <button id="editMasterBtn" class="text-blue-600 underline text-sm">Edit</button>
-          <button id="saveMasterBtn" class="hidden bg-green-500 text-white px-3 py-1 rounded text-sm">OK</button>
-          <button id="cancelMasterBtn" class="hidden bg-gray-300 text-black px-3 py-1 rounded text-sm">Cancel</button>
+          <button id="editMasterBtn" class="text-blue-600 underline text-sm">${t("edit")}</button>
+          <button id="saveMasterBtn" class="hidden bg-green-500 text-white px-3 py-1 rounded text-sm">${t("ok")}</button>
+          <button id="cancelMasterBtn" class="hidden bg-gray-300 text-black px-3 py-1 rounded text-sm">${t("cancel")}</button>
         </div>
       ` : `
         <div class="mt-4">
-          <p class="text-sm text-gray-500 italic">読み取り専用 - 編集権限がありません</p>
+          <p class="text-sm text-gray-500 italic">${t("readOnly")}</p>
         </div>
       `}
     </div>
 
     <div id="sidebarHistoryContent" class="hidden">
       <div id="changeHistoryContainer" class="space-y-3">
-        <p class="text-gray-500">履歴を読み込み中...</p>
+        <p class="text-gray-500">${t("loadingHistory")}</p>
       </div>
     </div>
   `;
