@@ -1,0 +1,36 @@
+<div class="space-y-6">
+  <!-- Header Section -->
+  <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+    <div>
+      <h1 class="text-3xl font-bold text-gray-900" data-translate="productMasterList">Product Master List</h1>
+      <p class="text-gray-600 mt-1">製品マスターデータの管理と編集</p>
+    </div>
+    <div class="flex gap-3">
+      <button onclick="showInsertCSVForm()" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm">
+        <i class="ri-file-upload-line mr-2"></i>
+        <span data-translate="csvBulkRegistration">CSV Bulk Registration</span>
+      </button>
+      <button onclick="openBlankMasterForm()" class="inline-flex items-center px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors shadow-sm">
+        <i class="ri-add-line mr-2"></i>
+        <span data-translate="newRegistration">New Registration</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Search Section -->
+  <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+    <div class="flex items-center gap-2 mb-4">
+      <i class="ri-search-line text-lg text-gray-600"></i>
+      <h3 class="text-lg font-semibold text-gray-900" data-translate="searchLabel">Search</h3>
+    </div>
+    <div class="relative">
+      <input type="text" id="masterSearchInput" class="w-full px-4 py-3 pl-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" data-translate-placeholder="searchPlaceholder" placeholder="Search..." />
+      <i class="ri-search-line absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+    </div>
+  </div>
+
+  <!-- Data Table -->
+  <div id="masterTableContainer">
+    <span data-translate="loading">Loading...</span>
+  </div>
+</div>

@@ -340,6 +340,11 @@ function updateUILanguage() {
   
   // Update header elements
   updateHeaderLanguage();
+  
+  // Update any translatable elements on the page
+  if (typeof updateTranslatableElements === 'function') {
+    updateTranslatableElements();
+  }
 }
 
 // Update header text elements
