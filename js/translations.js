@@ -20,6 +20,7 @@ const translations = {
     add: "Add",
     upload: "Upload",
     download: "Download",
+    download: "Download",
     
     // Dashboard
     deviceOverview: "Device Overview",
@@ -119,7 +120,38 @@ const translations = {
     noDataDescription: "No logs match the current criteria.",
     filters: "Filters",
     selectColumnsToExport: "Select columns to export",
-    executeExport: "Execute Export"
+    executeExport: "Execute Export",
+    
+    // Pagination and Search
+    itemsPerPage: "Items per page",
+    items: "items",
+    page: "Page",
+    of: "of",
+    previous: "Previous",
+    next: "Next",
+    searchHistory: "Search history...",
+    filterByAction: "Filter by action",
+    filterByUser: "Filter by user",
+    allUsers: "All Users",
+    creation: "Creation",
+    deletion: "Deletion",
+    showingResults: "Showing",
+    to: "to",
+    totalResults: "total results",
+    noHistoryFound: "No history records found matching the criteria.",
+    next: "Next",
+    searchHistory: "Search history...",
+    filterByAction: "Filter by action",
+    filterByUser: "Filter by user",
+    allActions: "All Actions",
+    allUsers: "All Users",
+    creation: "Creation",
+    deletion: "Deletion",
+    productNumber: "Product Number",
+    showingResults: "Showing",
+    to: "to",
+    totalResults: "total results",
+    noHistoryFound: "No history records found matching the criteria."
   },
   
   ja: {
@@ -241,7 +273,23 @@ const translations = {
     noDataDescription: "条件に一致するログはありません。",
     filters: "フィルター",
     selectColumnsToExport: "エクスポートする列を選択",
-    executeExport: "エクスポート実行"
+    executeExport: "エクスポート実行",
+    
+    // Pagination and Search for History
+    page: "ページ",
+    of: "／",
+    previous: "前へ",
+    next: "次へ",
+    searchHistory: "履歴を検索...",
+    filterByAction: "アクションでフィルター",
+    filterByUser: "ユーザーでフィルター",
+    allUsers: "すべてのユーザー",
+    creation: "作成",
+    deletion: "削除",
+    showingResults: "表示中",
+    to: "〜",
+    totalResults: "件中",
+    noHistoryFound: "条件に一致する履歴レコードが見つかりません。"
   }
 };
 

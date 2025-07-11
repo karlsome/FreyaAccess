@@ -105,6 +105,47 @@ function renderCustomerMasterTable(data) {
 
       <!-- History Tab Content -->
       <div id="historyTabContent" class="hidden p-6">
+        <!-- Search and Filter Controls -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-4">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="space-y-1">
+              <label class="block text-sm font-medium text-gray-700">${t("searchHistory")}</label>
+              <input type="text" id="historySearchInput" placeholder="${t("searchHistory")}" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" />
+            </div>
+            <div class="space-y-1">
+              <label class="block text-sm font-medium text-gray-700">${t("filterByAction")}</label>
+              <select id="historyActionFilter" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
+                <option value="">${t("allActions")}</option>
+                <option value="creation">${t("creation")}</option>
+                <option value="deletion">${t("deletion")}</option>
+              </select>
+            </div>
+            <div class="space-y-1">
+              <label class="block text-sm font-medium text-gray-700">${t("filterByUser")}</label>
+              <select id="historyUserFilter" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
+                <option value="">${t("allUsers")}</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pagination Info and Controls -->
+        <div class="flex justify-between items-center mb-4">
+          <div class="text-sm text-gray-600">
+            <span id="historyResultsInfo">${t("loadingHistory")}</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <label class="text-sm text-gray-600">${t("itemsPerPage")}:</label>
+            <select id="historyItemsPerPage" class="px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+              <option value="10">10</option>
+              <option value="25" selected>25</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- History List Container -->
         <div id="masterHistoryContainer" class="space-y-4">
           <div class="text-center py-8">
             <div class="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
@@ -112,6 +153,11 @@ function renderCustomerMasterTable(data) {
             </div>
             <p class="text-gray-500">${t("loadingHistory")}</p>
           </div>
+        </div>
+
+        <!-- Pagination Controls -->
+        <div id="historyPaginationContainer" class="mt-6 flex justify-center">
+          <!-- Pagination will be inserted here -->
         </div>
       </div>
     </div>
@@ -720,7 +766,12 @@ function showMasterDBTab(tabName) {
   }
 }
 
-// Function to load creation and deletion history for masterDB
+// Enhanced history loading with pagination, search, and filters
+let allHistoryData = [];
+let filteredHistoryData = [];
+let currentHistoryPage = 1;
+let historyItemsPerPage = 25;
+
 async function loadMasterDBHistory() {
   const container = document.getElementById('masterHistoryContainer');
   const currentUser = JSON.parse(localStorage.getItem("authUser") || "{}");
@@ -738,11 +789,211 @@ async function loadMasterDBHistory() {
       throw new Error('Failed to load history');
     }
 
-    const history = await response.json();
-    renderMasterDBHistoryList(history);
+    allHistoryData = await response.json();
+    initializeHistoryFilters();
+    applyHistoryFilters();
+    setupHistoryEventListeners();
   } catch (error) {
     console.error('Error loading history:', error);
-    container.innerHTML = '<p class="text-sm text-red-500">履歴の読み込みに失敗しました。</p>';
+    container.innerHTML = `<p class="text-sm text-red-500">${t("loadingHistory")} エラーが発生しました。</p>`;
+  }
+}
+
+// Initialize filter dropdowns with available options
+function initializeHistoryFilters() {
+  const userFilter = document.getElementById('historyUserFilter');
+  const users = [...new Set(allHistoryData.map(entry => 
+    entry.deletedBy || entry.createdBy || 'Unknown'
+  ))].sort();
+  
+  userFilter.innerHTML = `<option value="">${t("allUsers")}</option>`;
+  users.forEach(user => {
+    userFilter.innerHTML += `<option value="${user}">${user}</option>`;
+  });
+}
+
+// Setup event listeners for search and filters
+function setupHistoryEventListeners() {
+  const searchInput = document.getElementById('historySearchInput');
+  const actionFilter = document.getElementById('historyActionFilter');
+  const userFilter = document.getElementById('historyUserFilter');
+  const itemsPerPageSelect = document.getElementById('historyItemsPerPage');
+
+  // Debounced search
+  let searchTimeout;
+  searchInput.addEventListener('input', function() {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+      currentHistoryPage = 1;
+      applyHistoryFilters();
+    }, 300);
+  });
+
+  // Filter changes
+  [actionFilter, userFilter].forEach(filter => {
+    filter.addEventListener('change', () => {
+      currentHistoryPage = 1;
+      applyHistoryFilters();
+    });
+  });
+
+  // Items per page change
+  itemsPerPageSelect.addEventListener('change', function() {
+    historyItemsPerPage = parseInt(this.value);
+    currentHistoryPage = 1;
+    renderHistoryPage();
+  });
+}
+
+// Apply search and filters to data
+function applyHistoryFilters() {
+  const searchTerm = document.getElementById('historySearchInput').value.toLowerCase();
+  const actionFilter = document.getElementById('historyActionFilter').value;
+  const userFilter = document.getElementById('historyUserFilter').value;
+
+  filteredHistoryData = allHistoryData.filter(entry => {
+    const recordInfo = entry.recordData || {};
+    const isDeleteAction = entry.action && (entry.action.includes('削除') || entry.action.toLowerCase().includes('delete'));
+    const user = entry.deletedBy || entry.createdBy || 'Unknown';
+    
+    // Search filter
+    const searchMatches = !searchTerm || 
+      (recordInfo['品番'] && recordInfo['品番'].toLowerCase().includes(searchTerm)) ||
+      Object.values(recordInfo).some(value => 
+        value && value.toString().toLowerCase().includes(searchTerm)
+      ) ||
+      user.toLowerCase().includes(searchTerm);
+    
+    // Action filter
+    const actionMatches = !actionFilter || 
+      (actionFilter === 'creation' && !isDeleteAction) ||
+      (actionFilter === 'deletion' && isDeleteAction);
+    
+    // User filter
+    const userMatches = !userFilter || user === userFilter;
+    
+    return searchMatches && actionMatches && userMatches;
+  });
+
+  currentHistoryPage = 1;
+  renderHistoryPage();
+}
+
+// Render current page of history
+function renderHistoryPage() {
+  const container = document.getElementById('masterHistoryContainer');
+  const resultsInfo = document.getElementById('historyResultsInfo');
+  
+  if (!filteredHistoryData || filteredHistoryData.length === 0) {
+    container.innerHTML = `
+      <div class="text-center py-8">
+        <div class="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+          <i class="ri-file-text-line text-2xl text-gray-400"></i>
+        </div>
+        <p class="text-gray-500">${t("noHistoryFound")}</p>
+      </div>
+    `;
+    resultsInfo.textContent = t("noHistoryFound");
+    document.getElementById('historyPaginationContainer').innerHTML = '';
+    return;
+  }
+
+  // Calculate pagination
+  const totalItems = filteredHistoryData.length;
+  const totalPages = Math.ceil(totalItems / historyItemsPerPage);
+  const startIndex = (currentHistoryPage - 1) * historyItemsPerPage;
+  const endIndex = Math.min(startIndex + historyItemsPerPage, totalItems);
+  const pageData = filteredHistoryData.slice(startIndex, endIndex);
+
+  // Update results info
+  resultsInfo.innerHTML = `${t("showingResults")} ${startIndex + 1} ${t("to")} ${endIndex} ${t("of")} ${totalItems} ${t("totalResults")}`;
+
+  // Render history items
+  renderMasterDBHistoryList(pageData);
+  
+  // Render pagination controls
+  renderHistoryPagination(totalPages);
+}
+
+// Render pagination controls
+function renderHistoryPagination(totalPages) {
+  const container = document.getElementById('historyPaginationContainer');
+  
+  if (totalPages <= 1) {
+    container.innerHTML = '';
+    return;
+  }
+
+  const pagination = `
+    <nav class="flex items-center gap-2">
+      <button 
+        onclick="changeHistoryPage(${currentHistoryPage - 1})" 
+        ${currentHistoryPage <= 1 ? 'disabled' : ''}
+        class="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        <i class="ri-arrow-left-s-line mr-1"></i>
+        ${t("previous")}
+      </button>
+      
+      <div class="flex items-center gap-1">
+        ${Array.from({length: Math.min(7, totalPages)}, (_, i) => {
+          let pageNum;
+          if (totalPages <= 7) {
+            pageNum = i + 1;
+          } else if (currentHistoryPage <= 4) {
+            pageNum = i + 1;
+          } else if (currentHistoryPage >= totalPages - 3) {
+            pageNum = totalPages - 6 + i;
+          } else {
+            pageNum = currentHistoryPage - 3 + i;
+          }
+          
+          const isActive = pageNum === currentHistoryPage;
+          return `
+            <button 
+              onclick="changeHistoryPage(${pageNum})"
+              class="inline-flex items-center px-3 py-2 text-sm font-medium ${
+                isActive 
+                  ? 'text-blue-600 bg-blue-50 border border-blue-300' 
+                  : 'text-gray-500 bg-white border border-gray-300 hover:bg-gray-50 hover:text-gray-700'
+              } rounded-lg"
+            >
+              ${pageNum}
+            </button>
+          `;
+        }).join('')}
+        
+        ${totalPages > 7 && currentHistoryPage < totalPages - 3 ? `
+          <span class="px-2 text-gray-500">...</span>
+          <button 
+            onclick="changeHistoryPage(${totalPages})"
+            class="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:text-gray-700"
+          >
+            ${totalPages}
+          </button>
+        ` : ''}
+      </div>
+      
+      <button 
+        onclick="changeHistoryPage(${currentHistoryPage + 1})" 
+        ${currentHistoryPage >= totalPages ? 'disabled' : ''}
+        class="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        ${t("next")}
+        <i class="ri-arrow-right-s-line ml-1"></i>
+      </button>
+    </nav>
+  `;
+  
+  container.innerHTML = pagination;
+}
+
+// Change page function
+function changeHistoryPage(newPage) {
+  const totalPages = Math.ceil(filteredHistoryData.length / historyItemsPerPage);
+  if (newPage >= 1 && newPage <= totalPages) {
+    currentHistoryPage = newPage;
+    renderHistoryPage();
   }
 }
 
