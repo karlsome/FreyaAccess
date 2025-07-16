@@ -189,7 +189,7 @@ function renderUserTable(users) {
                 ${
                   h === "role"
                     ? `<select class="border p-1 rounded" disabled data-role user-id="${u._id}">
-                        ${["admin", "masterUser", "職長", "member"].map(r => `
+                        ${["admin", "職長", "member"].map(r => `
                           <option value="${r}" ${u.role === r ? "selected" : ""}>${r}</option>
                         `).join("")}
                       </select>`
