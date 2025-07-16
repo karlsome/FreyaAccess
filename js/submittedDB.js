@@ -1,6 +1,7 @@
 // js/submittedDB.js
 
 // --- State Management for the Submitted DB Page ---
+//const currentUser = JSON.parse(localStorage.getItem("authUser") || "{}");
 let totalRecords = 0;
 let currentPage = 1;
 let itemsPerPage = 50;
@@ -104,6 +105,7 @@ async function fetchAndRenderData(resetPage = false) {
         renderPagination();
         selectedRows.clear();
         updateCheckAllCheckboxState();
+        updateDeleteButtonState();
 
     } catch (error) {
         console.error('送信済みデータの取得に失敗しました:', error);
@@ -324,12 +326,29 @@ function updateCheckAllCheckboxState() {
     if (visibleCheckboxes.length === 0) {
         masterCheckbox.checked = false;
         masterCheckbox.indeterminate = false;
+        updateDeleteButtonState();
         return;
     }
     const allVisibleChecked = visibleCheckboxes.every(cb => cb.checked);
     const someVisibleChecked = visibleCheckboxes.some(cb => cb.checked);
     masterCheckbox.checked = allVisibleChecked;
     masterCheckbox.indeterminate = !allVisibleChecked && someVisibleChecked;
+    updateDeleteButtonState();
+}
+
+function updateDeleteButtonState() {
+    const deleteBtn = document.getElementById('deleteSelectedBtn');
+    if (!deleteBtn) return;
+    
+    if (selectedRows.size > 0) {
+        deleteBtn.disabled = false;
+        deleteBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        deleteBtn.classList.add('hover:bg-red-700');
+    } else {
+        deleteBtn.disabled = true;
+        deleteBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        deleteBtn.classList.remove('hover:bg-red-700');
+    }
 }
 
 
@@ -555,6 +574,12 @@ async function loadSubmittedDbPage() {
                     <p class="text-gray-600 mt-1">データ送信履歴とログを確認できます</p>
                 </div>
                 <div class="flex gap-3">
+                    ${currentUser.role === 'masterUser' ? `
+                    <button id="deleteSelectedBtn" onclick="deleteSelectedRecords()" class="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors shadow-sm opacity-50 cursor-not-allowed" disabled>
+                        <i class="ri-delete-bin-line mr-2"></i>
+                        削除
+                    </button>
+                    ` : ''}
                     <button onclick="initiateExport('csv')" class="inline-flex items-center px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors shadow-sm">
                         <i class="ri-file-excel-2-line mr-2"></i>
                         ${t("csvExport")}
@@ -726,6 +751,44 @@ async function loadSubmittedDbPage() {
     }
 
     initializePage();
+}
+
+async function deleteSelectedRecords() {
+    if (selectedRows.size === 0) {
+        alert('削除する行を選択してください。');
+        return;
+    }
+
+    const confirmMessage = `選択された ${selectedRows.size} 件のレコードを削除しますか？\n\nこの操作は取り消せません。`;
+    if (!confirm(confirmMessage)) return;
+
+    const idsToDelete = Array.from(selectedRows);
+    
+    try {
+        const response = await fetch(`${BASE_URL}deleteCustomerSubmittedRecords`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                dbName: currentUser.dbName,
+                recordIds: idsToDelete,
+                role: currentUser.role,
+                username: currentUser.username
+            })
+        });
+
+        const result = await response.json();
+        if (!response.ok) {
+            throw new Error(result.error || 'レコードの削除に失敗しました');
+        }
+
+        alert(`${result.deletedCount} 件のレコードが削除されました。`);
+        selectedRows.clear();
+        fetchAndRenderData();
+        
+    } catch (error) {
+        console.error('レコード削除エラー:', error);
+        alert('削除に失敗しました: ' + error.message);
+    }
 }
 
 // Helper function to apply status-based styling
