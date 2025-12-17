@@ -77,6 +77,23 @@
   </div>
 
   <script>
+    // ===== SUBDOMAIN ROUTING =====
+    // Detect if we're on a customer subdomain and redirect to dashboard
+    const hostname = window.location.hostname;
+    const isMainDomain = hostname === 'freyaaccess.com' || 
+                         hostname === 'www.freyaaccess.com' || 
+                         hostname === 'localhost' ||
+                         hostname === '127.0.0.1';
+    
+    // If on subdomain (kinuura, ksg, etc.), redirect to app.html
+    if (!isMainDomain && hostname.includes('.freyaaccess.com')) {
+      console.log('Subdomain detected, redirecting to dashboard...');
+      window.location.replace('/app.html' + window.location.search);
+      // Note: code below won't execute due to replace
+    }
+    // Otherwise, show login form
+    // ===== END SUBDOMAIN ROUTING =====
+
     //const API_BASE = 'https://kurachi.onrender.com';
     const API_BASE = 'http://localhost:3000'; // Uncomment for local development
 
