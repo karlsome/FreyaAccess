@@ -53,16 +53,10 @@ async function initAuth() {
   return false;
 }
 
-// Initialize auth before loading app
-await initAuth();
-
-const currentUser = JSON.parse(localStorage.getItem("authUser") || "{}");
-const roleDisplay = document.getElementById("userRole");
-if (roleDisplay) {
-  roleDisplay.textContent = currentUser.role || "guest";
-}
-const role = currentUser.role || "guest";
-const customerDB = currentUser.dbName; // Dynamically use customer's DB name
+// Global variables
+let currentUser = {};
+let role = "guest";
+let customerDB = "";
 
 // Role-based access
 const roleAccess = {
@@ -71,6 +65,19 @@ const roleAccess = {
   職長: ["dashboard", "submittedDB"],
   member: ["dashboard"]
 };
+
+// Initialize auth before loading app
+(async function() {
+  await initAuth();
+
+  currentUser = JSON.parse(localStorage.getItem("authUser") || "{}");
+  const roleDisplay = document.getElementById("userRole");
+  if (roleDisplay) {
+    roleDisplay.textContent = currentUser.role || "guest";
+  }
+  role = currentUser.role || "guest";
+  customerDB = currentUser.dbName; // Dynamically use customer's DB name
+})();
 
 // Navigation Setup
 function setupNavigation() {
