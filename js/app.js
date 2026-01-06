@@ -71,12 +71,23 @@ const roleAccess = {
   await initAuth();
 
   currentUser = JSON.parse(localStorage.getItem("authUser") || "{}");
+  role = currentUser.role || "guest";
+  customerDB = currentUser.dbName; // Dynamically use customer's DB name
+
+  // Wait for DOM to be ready
+  if (document.readyState === 'loading') {
+    await new Promise(resolve => document.addEventListener('DOMContentLoaded', resolve));
+  }
+
+  // Update UI after auth is complete
   const roleDisplay = document.getElementById("userRole");
   if (roleDisplay) {
     roleDisplay.textContent = currentUser.role || "guest";
   }
-  role = currentUser.role || "guest";
-  customerDB = currentUser.dbName; // Dynamically use customer's DB name
+
+  // Render sidebar and load default page
+  renderSidebarNavigation();
+  loadPage("dashboard");
 })();
 
 // Navigation Setup
@@ -233,9 +244,3 @@ function toggleDropdown() {
   const dropdown = document.getElementById("dropdownContent");
   dropdown.classList.toggle("hidden");
 }
-
-// Init app
-document.addEventListener("DOMContentLoaded", () => {
-  renderSidebarNavigation();
-  loadPage("dashboard"); // default view
-});
