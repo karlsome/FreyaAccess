@@ -1,6 +1,60 @@
-if (!localStorage.getItem("authUser")) {
-  window.location.href = "login.html";
+// Token validation and authentication
+const API_BASE = 'https://kurachi.onrender.com';
+//const API_BASE = 'http://localhost:3000'; // Uncomment for local development
+
+async function initAuth() {
+  // Check for token in URL (from redirect)
+  const urlParams = new URLSearchParams(window.location.search);
+  const token = urlParams.get('token');
+  
+  if (token) {
+    console.log('Token found in URL, validating...');
+    try {
+      const response = await fetch(`${API_BASE}/validateToken`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (response.ok) {
+        const userData = await response.json();
+        
+        // Store auth data
+        localStorage.setItem('authToken', token);
+        localStorage.setItem('authUser', JSON.stringify(userData));
+        
+        // Remove token from URL for security
+        window.history.replaceState({}, document.title, window.location.pathname);
+        
+        console.log('Authenticated:', userData.username);
+        return true;
+      } else {
+        console.error('Token validation failed');
+      }
+    } catch (error) {
+      console.error('Token validation error:', error);
+    }
+  }
+  
+  // Check if already logged in
+  const existingToken = localStorage.getItem('authToken');
+  const existingUser = localStorage.getItem('authUser');
+  
+  if (existingToken && existingUser) {
+    console.log('Already authenticated from localStorage');
+    return true;
+  }
+  
+  // Not authenticated - redirect to auth gateway
+  console.log('Not authenticated, redirecting to login');
+  window.location.href = 'https://freyaaccess.com';
+  return false;
 }
+
+// Initialize auth before loading app
+await initAuth();
 
 const currentUser = JSON.parse(localStorage.getItem("authUser") || "{}");
 const roleDisplay = document.getElementById("userRole");
@@ -163,7 +217,8 @@ async function loadPage(page) {
 // Logout logic
 function logout() {
   localStorage.removeItem("authUser");
-  window.location.href = "login.html";
+  localStorage.removeItem("authToken");
+  window.location.href = "https://freyaaccess.com";
 }
 
 // Toggle dropdown user menu
